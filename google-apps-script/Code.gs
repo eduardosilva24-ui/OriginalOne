@@ -1,8 +1,12 @@
 // WizPlanning: standalone Google Apps Script project (all Apps Script source is here).
+var WIZPLANNING_GAS_BUILD_ID = "ai-diagnostics-20261010-1";
 // BEGIN PLANNER CORE
 
 function doGet(e) {
-    if (e && e.parameter && e.parameter.action) return handleApiGet_(e);
+    if (e && e.parameter && e.parameter.action) {
+        console.log("[WizPlanningAPI][" + WIZPLANNING_GAS_BUILD_ID + "] GET action=" + safeDiagnosticToken_(e.parameter.action));
+        return handleApiGet_(e);
+    }
     return HtmlService.createHtmlOutput(PLANNER_HTML).setTitle("WizPlanning");
 }
 
@@ -854,10 +858,14 @@ var POINTS = {
 };
 
 function handleApiGet_(e) {
+  var params = e && e.parameter ? e.parameter : {};
+  var action = params.action;
+  if (action === "health") {
+    return success_({ service: "WizPlanningAPI", buildId: WIZPLANNING_GAS_BUILD_ID });
+  }
+
   try {
     ensureAllSheets_();
-    var params = e && e.parameter ? e.parameter : {};
-    var action = params.action;
 
     switch (action) {
       case "getUsers":
@@ -893,16 +901,25 @@ function handleApiGet_(e) {
 }
 
 function doPost(e) {
+  var requestId = Utilities.getUuid();
+  var action = "unknown";
+  var logPrefix = "[WizPlanningAPI][" + WIZPLANNING_GAS_BUILD_ID + "][request=" + requestId + "]";
   try {
     var params = e && e.parameter ? e.parameter : {};
     var body = parsePostBody_(e);
     var data = mergeObjects_(body, params);
-    var action = params.action || data.action;
+    action = params.action || data.action || "unknown";
+    requestId = safeRequestId_(data.requestId) || requestId;
+    logPrefix = "[WizPlanningAPI][" + WIZPLANNING_GAS_BUILD_ID + "][request=" + requestId + "]";
+    console.log(logPrefix + " POST action=" + safeDiagnosticToken_(action));
 
     // AI reviews do not read or write Sheets, so keep this path independent
     // from spreadsheet initialization and its latency.
     if (action === "reviewLessonWithAI") {
-      return success_(reviewLessonWithAI_(data));
+      var review = reviewLessonWithAI_(data, requestId);
+      review.requestId = requestId;
+      console.log(logPrefix + " AI review completed.");
+      return success_(review);
     }
 
     ensureAllSheets_();
@@ -942,7 +959,9 @@ function doPost(e) {
         throw new Error("Unknown POST action: " + action);
     }
   } catch (err) {
-    return failure_(err);
+    var errorDetail = action === "reviewLessonWithAI" ? safeDiagnosticError_(err) : String(err && err.name || "Error");
+    console.error(logPrefix + " POST failed for action=" + safeDiagnosticToken_(action) + ": " + errorDetail);
+    return failure_(err, requestId);
   }
 }
 
@@ -950,17 +969,17 @@ function getUsers() {
   return readRecords_(SHEETS.USERS, HEADERS.USERS);
 }
 
-function reviewLessonWithAI_(data) {
+function reviewLessonWithAI_(data, requestId) {
   var planText = String(optionalParam_(data, "planText", "")).trim();
   var maxPlanLength = 18000;
   if (!planText) throw new Error("Gere um plano de aula antes de pedir a revisão da IA.");
   if (planText.length > maxPlanLength) throw new Error("Este plano é muito grande para a revisão com IA.");
+  var logPrefix = "[WizPlanningAPI][" + WIZPLANNING_GAS_BUILD_ID + "][request=" + safeRequestId_(requestId) + "]";
+  console.log(logPrefix + " AI review accepted; planChars=" + planText.length + ".");
 
   var properties = PropertiesService.getScriptProperties();
   var apiKey = String(properties.getProperty("GEMINI_API_KEY") || "").trim();
   if (!apiKey) throw new Error("A IA ainda não está configurada no Apps Script.");
-
-  consumeGeminiReviewQuota_(properties);
 
   var model = String(properties.getProperty("GEMINI_MODEL") || "gemini-flash-latest").trim();
   if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new Error("O modelo da IA configurado é inválido.");
@@ -969,13 +988,18 @@ function reviewLessonWithAI_(data) {
   var payload = {
     systemInstruction: {
       parts: [{
-        text: "You are Wiz IA, a concise pedagogical assistant for English-language teachers. Review only the provided class plan. Reply in Brazilian Portuguese. Respect the supplied book, lesson numbers, schedule and learning objectives; do not invent a different teaching methodology. Never expose or speculate about personal data. Use short Markdown sections exactly titled: Pontos fortes, Ajustes sugeridos, Atividade extra, Materiais. Keep the response practical and under 500 words."
+        text: "You are Wiz IA, a pedagogical assistant for English-language teachers. Analyze only the submitted lesson plan, whose rows contain student, book, lesson, optional check time, and learning objective. Reply in Brazilian Portuguese as a concise plain-text report with exactly these sections, in this order: INTRODUÇÃO; PEER WORK (DUPLAS/GRUPOS); SUGESTÕES DE ATIVIDADES EXTRAS. Under INTRODUÇÃO, include one short bullet for every student in the plan, preserving the supplied name, book, and lesson, and faithfully explain in Portuguese what that student's stated learning objective means they will learn or practice. Never omit a student; if an objective is absent or unclear, say so instead of guessing. Under PEER WORK, suggest pairs or groups only when the supplied objectives show the same or clearly overlapping skills; name the students, explain the shared objective, and propose one simple joint task. Do not infer ability, personality, age, or schedule availability from names, lesson numbers, or check times. If the plan does not support a compatible group, say no reliable pairing was identified and do not force one. Under SUGESTÕES DE ATIVIDADES EXTRAS, suggest at least one optional, practical activity for each distinct objective or compatible objective cluster; identify the target student(s), brief steps, and simple materials or duration when useful. Activities must complement, not replace, the supplied lesson, and must not be presented as content from the book. Use only information in the plan, do not invent learning objectives, and do not speculate about personal data. Keep bullets brief; when there are many students, prioritize one accurate introduction bullet per student before adding detail."
       }]
     },
     contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.45, maxOutputTokens: 900 }
+    generationConfig: { temperature: 0.45, maxOutputTokens: 2400 }
   };
+
+  var quotaReservation = consumeGeminiReviewQuota_(properties);
+  var quotaCommitted = false;
+  try {
   var response;
+  var fetchStartedAt = Date.now();
   try {
     response = UrlFetchApp.fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
@@ -988,10 +1012,22 @@ function reviewLessonWithAI_(data) {
       }
     );
   } catch (err) {
-    throw new Error("Não foi possível acessar o serviço de IA. Tente novamente em instantes.");
+    var errorName = String(err && err.name || "Error");
+    var errorMessage = String(err && err.message || err || "Unknown fetch error");
+    if (apiKey) errorMessage = errorMessage.split(apiKey).join("[REDACTED]");
+    if (planText) errorMessage = errorMessage.split(planText).join("[PLAN REDACTED]");
+    errorMessage = errorMessage.replace(/[\r\n\t]+/g, " ").slice(0, 500);
+    console.error(
+      logPrefix + " Gemini UrlFetchApp.fetch failed after " + (Date.now() - fetchStartedAt) +
+      " ms (" + errorName + "): " + errorMessage
+    );
+    var fetchError = new Error("Não foi possível acessar o serviço de IA. Tente novamente em instantes.");
+    fetchError.requestId = safeRequestId_(requestId);
+    throw fetchError;
   }
 
   var status = response.getResponseCode();
+  console.log(logPrefix + " Gemini API returned HTTP " + status + " after " + (Date.now() - fetchStartedAt) + " ms.");
   var result = {};
   try {
     result = JSON.parse(response.getContentText() || "{}");
@@ -1009,7 +1045,25 @@ function reviewLessonWithAI_(data) {
     : [];
   var text = parts.map(function (part) { return String(part && part.text || ""); }).join("\n").trim();
   if (!text) throw new Error("A IA não retornou uma revisão. Tente novamente.");
+  quotaCommitted = true;
   return { text: text, model: model };
+  } finally {
+    if (!quotaCommitted) releaseGeminiReviewQuota_(properties, quotaReservation);
+  }
+}
+
+/**
+ * Execute once from the Apps Script editor if UrlFetchApp reports a permission error.
+ * This checks the external-request authorization without sending a Gemini prompt or API key.
+ */
+function authorizeGeminiExternalRequest() {
+  var response = UrlFetchApp.fetch("https://www.googleapis.com", {
+    method: "get",
+    muteHttpExceptions: true
+  });
+  var status = response.getResponseCode();
+  console.log("[WizPlanningAPI][" + WIZPLANNING_GAS_BUILD_ID + "] External-request authorization check returned HTTP " + status + ".");
+  return { authorized: true, httpStatus: status, buildId: WIZPLANNING_GAS_BUILD_ID };
 }
 
 function consumeGeminiReviewQuota_(properties) {
@@ -1031,6 +1085,22 @@ function consumeGeminiReviewQuota_(properties) {
       GEMINI_REVIEW_QUOTA_COUNT: String(currentCount + 1)
     }, false);
   });
+  return { date: today };
+}
+
+function releaseGeminiReviewQuota_(properties, reservation) {
+  if (!reservation || !reservation.date) return;
+  try {
+    withLock_(function () {
+      var storedDate = properties.getProperty("GEMINI_REVIEW_QUOTA_DATE") || "";
+      if (storedDate !== reservation.date) return;
+      var currentCount = parseInt(properties.getProperty("GEMINI_REVIEW_QUOTA_COUNT") || "0", 10);
+      if (!isFinite(currentCount) || currentCount < 1) return;
+      properties.setProperty("GEMINI_REVIEW_QUOTA_COUNT", String(currentCount - 1));
+    });
+  } catch (err) {
+    console.error("[WizPlanningAPI][" + WIZPLANNING_GAS_BUILD_ID + "] Failed to release an unsuccessful AI quota reservation: " + safeDiagnosticError_(err));
+  }
 }
 
 function getUser(userId) {
@@ -1705,8 +1775,27 @@ function success_(data) {
   return json_({ success: true, data: data });
 }
 
-function failure_(err) {
-  return json_({ success: false, error: err && err.message ? err.message : String(err) });
+function failure_(err, requestId) {
+  var payload = { success: false, error: err && err.message ? err.message : String(err) };
+  var safeId = safeRequestId_(requestId || (err && err.requestId));
+  if (safeId) payload.requestId = safeId;
+  return json_(payload);
+}
+
+function safeRequestId_(value) {
+  var requestId = String(value || "");
+  return /^[a-zA-Z0-9_-]{8,80}$/.test(requestId) ? requestId : "";
+}
+
+function safeDiagnosticToken_(value) {
+  var token = String(value || "unknown");
+  return /^[a-zA-Z0-9_-]{1,80}$/.test(token) ? token : "unknown";
+}
+
+function safeDiagnosticError_(err) {
+  var message = String(err && err.message || err || "Unknown error");
+  message = message.replace(/AQ\.[A-Za-z0-9_-]{20,}/g, "[REDACTED]");
+  return message.replace(/[\r\n\t]+/g, " ").slice(0, 500);
 }
 
 function json_(payload) {

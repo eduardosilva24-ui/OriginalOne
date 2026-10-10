@@ -56,7 +56,7 @@ function setupAiReview() {
 async function reviewCurrentPlanWithAI() {
   const planText = (currentOutput || document.getElementById('output')?.value || '').trim();
   if (!planText) {
-    window.UI?.showToast('Gere um plano de aula antes de pedir a revisão da IA.', 'warning');
+    window.UI?.showToast('Gere um plano de aula antes de solicitar o relatório da IA.', 'warning');
     return;
   }
 
@@ -66,12 +66,13 @@ async function reviewCurrentPlanWithAI() {
   try {
     window.UI?.setButtonLoading(button, true, 'Analisando...');
     panel?.classList.remove('hidden');
-    if (output) output.value = 'A Wiz IA está analisando o plano…';
+    if (output) output.value = 'A Wiz IA está preparando o relatório pedagógico…';
     const review = await window.API.reviewLessonWithAI(planText);
     if (output) output.value = review.text || '';
   } catch (error) {
     if (output) output.value = '';
-    window.UI?.showToast(`Não foi possível gerar as sugestões: ${error.message}`, 'error');
+    const requestReference = error.requestId ? ` (referência ${error.requestId})` : '';
+    window.UI?.showToast(`Não foi possível gerar o relatório: ${error.message}${requestReference}`, 'error');
   } finally {
     window.UI?.setButtonLoading(button, false);
   }
@@ -80,14 +81,14 @@ async function reviewCurrentPlanWithAI() {
 async function copyAiReview() {
   const output = document.getElementById('aiReviewOutput');
   const text = output?.value?.trim();
-  if (!text) return window.UI?.showToast('Ainda não há sugestões para copiar.', 'warning');
+  if (!text) return window.UI?.showToast('Ainda não há relatório para copiar.', 'warning');
   try {
     await navigator.clipboard.writeText(text);
-    window.UI?.showToast('Sugestões copiadas.', 'success');
+    window.UI?.showToast('Relatório copiado.', 'success');
   } catch {
     output.select();
     document.execCommand('copy');
-    window.UI?.showToast('Sugestões copiadas.', 'success');
+    window.UI?.showToast('Relatório copiado.', 'success');
   }
 }
 

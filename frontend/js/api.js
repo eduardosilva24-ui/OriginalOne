@@ -1317,6 +1317,7 @@ class API {
     const err = new Error(message);
     err.status = status;
     err.body = body;
+    err.requestId = body && typeof body.requestId === 'string' ? body.requestId : '';
     return err;
   }
 
@@ -1495,15 +1496,17 @@ class API {
   static async reviewLessonWithAI(planText) {
     const normalizedPlan = String(planText || '').trim();
     if (!normalizedPlan) {
-      throw new Error('Gere um plano de aula antes de pedir a revisão da IA.');
+      throw new Error('Gere um plano de aula antes de solicitar o relatório da IA.');
     }
+    const requestId = window.crypto?.randomUUID?.() ||
+      `ai-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
     if (this.isAppsScriptMode) {
-      return this.appsScriptAction('reviewLessonWithAI', { planText: normalizedPlan }, { method: 'POST' });
+      return this.appsScriptAction('reviewLessonWithAI', { planText: normalizedPlan, requestId }, { method: 'POST' });
     }
 
     if (this.isStaticMode) {
-      throw new Error('A revisão com IA não está disponível nesta configuração do site.');
+      throw new Error('O relatório com IA não está disponível nesta configuração do site.');
     }
 
     let response;
