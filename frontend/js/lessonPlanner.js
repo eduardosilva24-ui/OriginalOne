@@ -42,6 +42,55 @@ function initTables() {
   gasPlannerReady = true;
 }
 
+function setupAiReview() {
+  const reviewButton = document.getElementById('aiReviewBtn');
+  if (!reviewButton || reviewButton.dataset.bound) return;
+  reviewButton.dataset.bound = 'true';
+  reviewButton.addEventListener('click', reviewCurrentPlanWithAI);
+  document.getElementById('closeAiReviewBtn')?.addEventListener('click', () => {
+    document.getElementById('aiReviewPanel')?.classList.add('hidden');
+  });
+  document.getElementById('copyAiReviewBtn')?.addEventListener('click', copyAiReview);
+}
+
+async function reviewCurrentPlanWithAI() {
+  const planText = (currentOutput || document.getElementById('output')?.value || '').trim();
+  if (!planText) {
+    window.UI?.showToast('Gere um plano de aula antes de pedir a revisão da IA.', 'warning');
+    return;
+  }
+
+  const button = document.getElementById('aiReviewBtn');
+  const panel = document.getElementById('aiReviewPanel');
+  const output = document.getElementById('aiReviewOutput');
+  try {
+    window.UI?.setButtonLoading(button, true, 'Analisando...');
+    panel?.classList.remove('hidden');
+    if (output) output.value = 'A Wiz IA está analisando o plano…';
+    const review = await window.API.reviewLessonWithAI(planText);
+    if (output) output.value = review.text || '';
+  } catch (error) {
+    if (output) output.value = '';
+    window.UI?.showToast(`Não foi possível gerar as sugestões: ${error.message}`, 'error');
+  } finally {
+    window.UI?.setButtonLoading(button, false);
+  }
+}
+
+async function copyAiReview() {
+  const output = document.getElementById('aiReviewOutput');
+  const text = output?.value?.trim();
+  if (!text) return window.UI?.showToast('Ainda não há sugestões para copiar.', 'warning');
+  try {
+    await navigator.clipboard.writeText(text);
+    window.UI?.showToast('Sugestões copiadas.', 'success');
+  } catch {
+    output.select();
+    document.execCommand('copy');
+    window.UI?.showToast('Sugestões copiadas.', 'success');
+  }
+}
+
 document.getElementById('inputBody')?.addEventListener('paste', handlePaste);
 
 function handlePaste(e) {
@@ -127,4 +176,4 @@ window.loadSampleData = () => {
   window.UI?.showToast('Sample loaded');
 };
 
-window.LessonPlanner = { init() { initTables(); } };
+window.LessonPlanner = { init() { initTables(); setupAiReview(); } };

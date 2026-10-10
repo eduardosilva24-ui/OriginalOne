@@ -3,6 +3,8 @@
   const { protocol } = window.location;
   const openedAsFile = protocol === 'file:';
   const hostedOnGithubPages = window.location.hostname.endsWith('.github.io');
+  const runningLocalBackend =
+    !openedAsFile && ['localhost', '127.0.0.1'].includes(window.location.hostname);
   // REST backend base, for example: 'https://wizplanning-api.onrender.com'
   const deployedApiBase = '';
   // Google Apps Script backend base.
@@ -27,7 +29,8 @@
     APPS_SCRIPT_API_BASE: configuredAppsScriptApiBase
       ? configuredAppsScriptApiBase.replace(/\/$/, '')
       : '',
-    APPS_SCRIPT_MODE: Boolean(configuredAppsScriptApiBase) && !configuredApiBase,
+    APPS_SCRIPT_MODE:
+      Boolean(configuredAppsScriptApiBase) && !configuredApiBase && !runningLocalBackend,
     STATIC_MODE: hostedOnGithubPages && !configuredApiBase && !configuredAppsScriptApiBase
   };
 })();

@@ -68,11 +68,18 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    ensureAllSheets_();
     var params = e && e.parameter ? e.parameter : {};
     var body = parsePostBody_(e);
     var data = mergeObjects_(body, params);
     var action = params.action || data.action;
+
+    // AI reviews do not read or write Sheets, so keep this path independent
+    // from spreadsheet initialization and its latency.
+    if (action === "reviewLessonWithAI") {
+      return success_(reviewLessonWithAI_(data));
+    }
+
+    ensureAllSheets_();
 
     switch (action) {
       case "createUser":
@@ -115,6 +122,89 @@ function doPost(e) {
 
 function getUsers() {
   return readRecords_(SHEETS.USERS, HEADERS.USERS);
+}
+
+function reviewLessonWithAI_(data) {
+  var planText = String(optionalParam_(data, "planText", "")).trim();
+  var maxPlanLength = 18000;
+  if (!planText) throw new Error("Gere um plano de aula antes de pedir a revisão da IA.");
+  if (planText.length > maxPlanLength) throw new Error("Este plano é muito grande para a revisão com IA.");
+
+  var properties = PropertiesService.getScriptProperties();
+  var apiKey = String(properties.getProperty("GEMINI_API_KEY") || "").trim();
+  if (!apiKey) throw new Error("A IA ainda não está configurada no Apps Script.");
+
+  consumeGeminiReviewQuota_(properties);
+
+  var model = String(properties.getProperty("GEMINI_MODEL") || "gemini-flash-latest").trim();
+  if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new Error("O modelo da IA configurado é inválido.");
+
+  var prompt = "Revise este planejamento de aula:\n\n" + planText;
+  var payload = {
+    systemInstruction: {
+      parts: [{
+        text: "You are Wiz IA, a concise pedagogical assistant for English-language teachers. Review only the provided class plan. Reply in Brazilian Portuguese. Respect the supplied book, lesson numbers, schedule and learning objectives; do not invent a different teaching methodology. Never expose or speculate about personal data. Use short Markdown sections exactly titled: Pontos fortes, Ajustes sugeridos, Atividade extra, Materiais. Keep the response practical and under 500 words."
+      }]
+    },
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.45, maxOutputTokens: 900 }
+  };
+  var response;
+  try {
+    response = UrlFetchApp.fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
+      {
+        method: "post",
+        contentType: "application/json",
+        headers: { "X-goog-api-key": apiKey },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      }
+    );
+  } catch (err) {
+    throw new Error("Não foi possível acessar o serviço de IA. Tente novamente em instantes.");
+  }
+
+  var status = response.getResponseCode();
+  var result = {};
+  try {
+    result = JSON.parse(response.getContentText() || "{}");
+  } catch (err) {
+    throw new Error("O serviço de IA retornou uma resposta inválida.");
+  }
+  if (status < 200 || status >= 300) {
+    if (status === 401 || status === 403) throw new Error("A chave da IA está inválida ou sem acesso ao modelo.");
+    if (status === 429) throw new Error("O limite de uso da IA foi atingido. Tente novamente mais tarde.");
+    throw new Error("Não foi possível gerar a revisão com IA. Tente novamente.");
+  }
+
+  var parts = result && result.candidates && result.candidates[0] && result.candidates[0].content
+    ? result.candidates[0].content.parts || []
+    : [];
+  var text = parts.map(function (part) { return String(part && part.text || ""); }).join("\n").trim();
+  if (!text) throw new Error("A IA não retornou uma revisão. Tente novamente.");
+  return { text: text, model: model };
+}
+
+function consumeGeminiReviewQuota_(properties) {
+  var dailyLimit = parseInt(properties.getProperty("GEMINI_DAILY_REVIEW_LIMIT") || "100", 10);
+  if (!isFinite(dailyLimit) || dailyLimit < 1) dailyLimit = 100;
+  var today = Utilities.formatDate(new Date(), "Etc/UTC", "yyyy-MM-dd");
+
+  withLock_(function () {
+    var storedDate = properties.getProperty("GEMINI_REVIEW_QUOTA_DATE") || "";
+    var currentCount = storedDate === today
+      ? parseInt(properties.getProperty("GEMINI_REVIEW_QUOTA_COUNT") || "0", 10)
+      : 0;
+    if (!isFinite(currentCount) || currentCount < 0) currentCount = 0;
+    if (currentCount >= dailyLimit) {
+      throw new Error("O limite diário de revisões com IA foi atingido. Tente novamente amanhã.");
+    }
+    properties.setProperties({
+      GEMINI_REVIEW_QUOTA_DATE: today,
+      GEMINI_REVIEW_QUOTA_COUNT: String(currentCount + 1)
+    }, false);
+  });
 }
 
 function getUser(userId) {

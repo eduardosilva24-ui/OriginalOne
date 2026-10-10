@@ -20,7 +20,6 @@ export class AuthService {
         reject(new Error('Missing required fields'));
         return;
       }
-
       const emailNorm = String(email).trim().toLowerCase();
       const hashedPassword = bcryptjs.hashSync(password, 10);
       const db = this.db;
@@ -253,5 +252,6 @@ export class AuthService {
     this.db.close();
   }
 }
+
 
 export default AuthService;

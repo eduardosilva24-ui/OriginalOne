@@ -148,7 +148,7 @@ class Dashboard {
     if (!plans.length) {
       const empty = document.createElement('p');
       empty.className = 'empty-state';
-      empty.textContent = 'No plans. ';
+      empty.textContent = 'No lesson plans. ';
 
       const createLink = document.createElement('button');
       createLink.type = 'button';

@@ -1490,6 +1490,42 @@ class API {
     return this.request(`/lesson-plans/metadata/lessons/${book}`);
   }
 
+  // The GitHub Pages deployment uses Apps Script as its server-side Gemini
+  // proxy; local/self-hosted Node deployments continue using their API route.
+  static async reviewLessonWithAI(planText) {
+    const normalizedPlan = String(planText || '').trim();
+    if (!normalizedPlan) {
+      throw new Error('Gere um plano de aula antes de pedir a revisão da IA.');
+    }
+
+    if (this.isAppsScriptMode) {
+      return this.appsScriptAction('reviewLessonWithAI', { planText: normalizedPlan }, { method: 'POST' });
+    }
+
+    if (this.isStaticMode) {
+      throw new Error('A revisão com IA não está disponível nesta configuração do site.');
+    }
+
+    let response;
+    try {
+      response = await fetch(`${API_BASE}/ai/review-lesson`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ planText: normalizedPlan })
+      });
+    } catch (error) {
+      const err = new Error('Cannot reach the AI service. Is the WizPlanning server running?');
+      err.status = 0;
+      err.cause = error;
+      throw err;
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw API._makeHttpError(response.status, body);
+    }
+    return response.json();
+  }
+
   // Reward endpoints
   static getRewards() {
     return this.request('/rewards');

@@ -1,417 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WizPlanning - Lesson Planning Made Easy</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="main.css">
-    <link rel="stylesheet" href="gas-planner.css">
-    <link rel="stylesheet" href="animations.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WizPlanning - Lesson Planning Made Easy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="main.css">
+  <link rel="stylesheet" href="gas-planner.css">
+  <link rel="stylesheet" href="animations.css">
 </head>
 <body>
-    <div id="app">
-        <!-- Loading Screen -->
-        <div id="loadingScreen" class="loading-screen active">
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <h1>WizPlanning</h1>
-                <p>Initializing application...</p>
-            </div>
-        </div>
-
-        <!-- Login Page -->
-        <div id="loginPage" class="page hidden">
-            <div class="login-container">
-                <div class="login-box">
-                <div class="logo-area">
-                    <div class="brand-logo">
-                        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="100" cy="100" r="95" fill="#E63946"/>
-                            <text x="100" y="115" text-anchor="middle" font-size="60" font-weight="bold" fill="white">W</text>
-                        </svg>
-                    </div>
-                </div>
-                    
-                    <form id="loginForm" class="auth-form">
-                        <div class="form-group">
-                            <label for="loginEmail">Email</label>
-                            <input type="email" id="loginEmail" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="loginPassword">Password</label>
-                            <input type="password" id="loginPassword" name="password" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Login</button>
-                    </form>
-
-                    <div class="auth-divider">or</div>
-
-                    <form id="registerForm" class="auth-form">
-                        <h3>Create Account</h3>
-                        <div class="form-group">
-                            <label for="registerName">Name</label>
-                            <input type="text" id="registerName" name="name" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="registerEmail">Email</label>
-                            <input type="email" id="registerEmail" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="registerPassword">Password</label>
-                            <input type="password" id="registerPassword" name="password" required>
-                        </div>
-                        <button type="submit" class="btn btn-secondary">Create Account</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main App -->
-        <div id="mainApp" class="main-app hidden">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    <div class="sidebar-logo">
-                        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="100" cy="100" r="95" fill="#E63946"/>
-                            <text x="100" y="115" text-anchor="middle" font-size="60" font-weight="bold" fill="white">W</text>
-                        </svg>
-                    </div>
-                    <h2>WizPlanning</h2>
-                    <div class="user-info">
-                        <p id="userName">Teacher</p>
-                        <small id="userRole">Teacher</small>
-                    </div>
-                </div>
-
-                <nav class="sidebar-nav">
-                    <button class="nav-item active" data-page="dashboard">
-                        <span class="icon">📊</span>
-                        <span>Dashboard</span>
-                    </button>
-                    <button class="nav-item" data-page="lesson-planner">
-                        <span class="icon">📝</span>
-                        <span>Lesson Planner</span>
-                    </button>
-                    <button class="nav-item" data-page="community">
-                        <span class="icon">👥</span>
-                        <span>Community</span>
-                    </button>
-                    <button class="nav-item" data-page="rewards">
-                        <span class="icon">🏆</span>
-                        <span>Rewards</span>
-                    </button>
-                    <button class="nav-item" data-page="notifications">
-                        <span class="icon">!</span>
-                        <span>Notifications</span>
-                        <span id="notificationBadge" class="notification-badge hidden">0</span>
-                    </button>
-                    <button class="nav-item" data-page="profile">
-                        <span class="icon">P</span>
-                        <span>Profile</span>
-                    </button>
-                </nav>
-
-                <div class="sidebar-footer">
-                    <button id="logoutBtn" class="btn btn-outline">Logout</button>
-                </div>
-            </aside>
-
-            <!-- Main Content -->
-            <main class="main-content">
-                <button id="sidebarToggle" class="btn btn-outline sidebar-toggle" type="button" aria-label="Toggle navigation">Menu</button>
-                <!-- Dashboard Page -->
-                <div id="dashboardPage" class="page-content active">
-                    <header class="page-header">
-                        <h1>Dashboard</h1>
-                        <p>Welcome back! Here's an overview of your lesson planning.</p>
-                    </header>
-
-                    <div class="dashboard-grid">
-                        <div class="stat-card">
-                            <h3>Lesson Plans</h3>
-                            <p class="stat-number" id="lessonPlanCount">0</p>
-                            <small>Total created</small>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Points</h3>
-                            <p class="stat-number" id="userPoints">0</p>
-                            <small>Gamification rewards</small>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Level</h3>
-                            <p class="stat-number" id="userLevel">Beginner</p>
-                            <small>Current achievement</small>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Activities</h3>
-                            <p class="stat-number" id="activityCount">0</p>
-                            <small>Shared with community</small>
-                        </div>
-                    </div>
-
-                    <div class="recent-section">
-                        <h2>Recent Lesson Plans</h2>
-                        <div id="recentLessonPlans" class="lessons-list">
-                            <p class="empty-state">No lesson plans yet. Create one to get started!</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Lesson Planner — Apps Script formulario replica -->
-                <div id="lessonPlannerPage" class="page-content lesson-planner-wrap">
-                    <div class="gas-planner-body">
-                        <div class="gas-container">
-                            <h1 class="gas-title">Class Planning Program</h1>
-
-                            <div class="gas-main-content">
-                                <div class="gas-input-table">
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th>NAME</th>
-                                                <th>BOOK</th>
-                                                <th>LESSON</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="inputBody"></tbody>
-                                    </table>
-                                </div>
-
-                                <div class="gas-button-container">
-                                    <button type="button" class="gas-generate-btn" onclick="processData()">Gerar Aula</button>
-                                    <button type="button" class="gas-generate-btn" onclick="toggleObjectivesColumn()">
-                                        Mostrar/Ocultar Learning Objectives
-                                    </button>
-
-                                    <img
-                                        src="https://cdn.wizard.com.br/wp-content/uploads/2019/10/01155611/logo-aguia-wizard-by-pearson-idiomas.png"
-                                        class="gas-logo"
-                                        alt="Wizard logo" />
-
-                                    <div class="gas-horario-container">
-                                        <label for="horario">Horário da aula</label>
-                                        <input type="time" id="horario" />
-                                    </div>
-                                </div>
-
-                                <div class="gas-input-table">
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th>NAME</th>
-                                                <th>BOOK</th>
-                                                <th>LESSON</th>
-                                                <th>CHECKING TIME</th>
-                                                <th>LEARNING OBJECTIVES</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="outputBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div style="margin-top: 20px">
-                                <label for="output">Copiar resultado para Excel:</label>
-                                <textarea id="output" readonly rows="5"></textarea>
-                                <button type="button" onclick="copiarResultado()" class="gas-generate-btn" style="padding: 8px 20px; font-size: 1rem">
-                                    Copiar para Excel
-                                </button>
-                            </div>
-
-                            <div class="gas-footer">Eduardo&#160;Moretti</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Community Page -->
-                <div id="communityPage" class="page-content">
-                    <header class="page-header">
-                        <h1>Community</h1>
-                        <p>Share and discover teaching activities with the community.</p>
-                    </header>
-
-                    <div class="community-container">
-                        <section class="upload-section">
-                            <h2>Share Activity</h2>
-                            <form id="uploadForm" class="upload-form">
-                                <div class="form-group">
-                                    <label for="activityTitle">Title</label>
-                                    <input type="text" id="activityTitle" required>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="activityDescription">Description</label>
-                                    <textarea id="activityDescription" rows="3"></textarea>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="activityCategory">Category</label>
-                                    <select id="activityCategory">
-                                        <option value="general">General</option>
-                                        <option value="grammar">Grammar</option>
-                                        <option value="vocabulary">Vocabulary</option>
-                                        <option value="speaking">Speaking</option>
-                                        <option value="writing">Writing</option>
-                                        <option value="reading">Reading</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="activityFileUrl">Material URL</label>
-                                    <input type="url" id="activityFileUrl" placeholder="https://drive.google.com/...">
-                                </div>
-
-                                <button type="submit" class="btn btn-primary">Share Activity</button>
-                            </form>
-                        </section>
-
-                        <section class="activities-section">
-                            <h2>Community Activities</h2>
-                            <div id="activitiesList" class="activities-grid">
-                                <p class="empty-state">No activities shared yet. Be the first!</p>
-                            </div>
-                        </section>
-                    </div>
-                </div>
-
-                <!-- Rewards Page -->
-                <div id="rewardsPage" class="page-content">
-                    <header class="page-header">
-                        <h1>Rewards & Leaderboard</h1>
-                        <p>Track your progress and compete with other teachers.</p>
-                    </header>
-
-                    <div class="rewards-container">
-                        <section class="user-rewards">
-                            <h2>Your Rewards</h2>
-                            <div class="rewards-display">
-                                <div class="reward-item">
-                                    <h3>Points</h3>
-                                    <p class="reward-value" id="dashboardPoints">0</p>
-                                </div>
-                                <div class="reward-item">
-                                    <h3>Level</h3>
-                                    <p class="reward-value" id="dashboardLevel">Beginner</p>
-                                </div>
-                                <div class="reward-item">
-                                    <h3>Badges</h3>
-                                    <p class="reward-value" id="badgeCount">0</p>
-                                </div>
-                            </div>
-
-                            <button id="dailyBonusBtn" class="btn btn-secondary">Claim Daily Bonus</button>
-                            <div class="badges-section">
-                                <h3>Your Badges</h3>
-                                <div id="badgesList" class="badges-list">
-                                    <p class="empty-state">No badges yet.</p>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="leaderboard">
-                            <h2>Top Teachers</h2>
-                            <table class="leaderboard-table table">
-                                <thead>
-                                    <tr>
-                                        <th>Rank</th>
-                                        <th>Teacher</th>
-                                        <th>Points</th>
-                                        <th>Level</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="leaderboardBody">
-                                    <tr>
-                                        <td colspan="4" class="empty-state">Loading...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </section>
-                    </div>
-                </div>
-
-                <!-- Notifications Page -->
-                <div id="notificationsPage" class="page-content">
-                    <header class="page-header">
-                        <h1>Notifications</h1>
-                        <p>Keep track of likes, badge unlocks, and teacher activity.</p>
-                    </header>
-
-                    <div class="notifications-panel">
-                        <div class="section-heading">
-                            <h2>Recent Updates</h2>
-                            <button id="markAllNotificationsReadBtn" class="btn btn-outline" type="button">Mark all read</button>
-                        </div>
-                        <div id="notificationsList" class="notifications-list">
-                            <p class="empty-state">No notifications yet.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Profile Page -->
-                <div id="profilePage" class="page-content">
-                    <header class="page-header">
-                        <h1>Profile</h1>
-                        <p>Keep your teacher profile current for the community.</p>
-                    </header>
-
-                    <div class="profile-container">
-                        <section class="profile-card">
-                            <h2>Edit Profile</h2>
-                            <div class="profile-preview">
-                                <div>
-                                    <h2 id="profilePreviewName">Teacher</h2>
-                                    <p id="profilePreviewBio">No bio yet.</p>
-                                    <small id="profilePreviewMeta"></small>
-                                </div>
-                            </div>
-                            <form id="profileForm" class="profile-form">
-                                <div class="form-group">
-                                    <label for="profileName">Name</label>
-                                    <input type="text" id="profileName" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="profileBio">Bio</label>
-                                    <textarea id="profileBio" rows="4" placeholder="Tell colleagues about your teaching style, classes, and interests."></textarea>
-                                </div>
-                                <div class="form-row-split">
-                                    <div class="form-group">
-                                        <label for="profileLocation">Location</label>
-                                        <input type="text" id="profileLocation" placeholder="City, school, or unit">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="profilePhone">Contact</label>
-                                        <input type="text" id="profilePhone" placeholder="WhatsApp, email, or preferred contact">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="profileSpecialties">Specialties</label>
-                                    <input type="text" id="profileSpecialties" placeholder="Kids, teens, conversation, grammar, exams">
-                                </div>
-                                <button type="submit" class="btn btn-primary">Save Profile</button>
-                            </form>
-                        </section>
-                    </div>
-                </div>
-            </main>
-        </div>
+  <div id="app">
+    <div id="loadingScreen" class="loading-screen active">
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <h1>WizPlanning</h1>
+        <p>Initializing your workspace...</p>
+      </div>
     </div>
 
-    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+    <div id="loginPage" class="page hidden">
+      <div class="login-container">
+        <div class="login-box">
+          <div class="logo-area">
+            <div class="brand-logo" aria-label="WizPlanning">
+              <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="100" cy="100" r="95" fill="#E63946"/><text x="100" y="115" text-anchor="middle" font-size="60" font-weight="bold" fill="white">W</text></svg>
+            </div>
+          </div>
+          <form id="loginForm" class="auth-form">
+            <div class="form-group"><label for="loginEmail">Email</label><input type="email" id="loginEmail" name="email" autocomplete="email" required></div>
+            <div class="form-group"><label for="loginPassword">Password</label><input type="password" id="loginPassword" name="password" autocomplete="current-password" required></div>
+            <button type="submit" class="btn btn-primary">Login</button>
+          </form>
+          <div class="auth-divider">or</div>
+          <form id="registerForm" class="auth-form">
+            <h3>Create Account</h3>
+            <div class="form-group"><label for="registerName">Name</label><input type="text" id="registerName" name="name" autocomplete="name" required></div>
+            <div class="form-group"><label for="registerEmail">Email</label><input type="email" id="registerEmail" name="email" autocomplete="email" required></div>
+            <div class="form-group"><label for="registerPassword">Password</label><input type="password" id="registerPassword" name="password" autocomplete="new-password" required></div>
+            <button type="submit" class="btn btn-secondary">Create Account</button>
+          </form>
+        </div>
+      </div>
+    </div>
 
-    <script src="frontend/js/config.js"></script>
-    <script src="frontend/js/api.js"></script>
-    <script src="frontend/js/ui.js"></script>
-    <script src="frontend/js/auth.js"></script>
-    <script src="frontend/js/dashboard.js"></script>
-    <script src="frontend/js/lessonPlanner.js"></script>
-    <script src="frontend/js/community.js"></script>
-    <script src="frontend/js/rewards.js"></script>
-    <script src="frontend/js/notifications.js"></script>
-    <script src="frontend/js/profile.js"></script>
-    <script src="frontend/js/app.js"></script>
+    <div id="mainApp" class="main-app hidden">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-logo"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="100" cy="100" r="95" fill="#E63946"/><text x="100" y="115" text-anchor="middle" font-size="60" font-weight="bold" fill="white">W</text></svg></div>
+          <h2>WizPlanning</h2>
+          <div class="user-info"><p id="userName">Teacher</p><small id="userRole">Teacher</small></div>
+        </div>
+        <nav class="sidebar-nav" aria-label="Main navigation">
+          <button class="nav-item active" data-page="dashboard"><span class="icon">📊</span><span>Dashboard</span></button>
+          <button class="nav-item" data-page="lesson-planner"><span class="icon">📝</span><span>Lesson Planner</span></button>
+          <button class="nav-item" data-page="community"><span class="icon">👥</span><span>Community</span></button>
+          <button class="nav-item" data-page="rewards"><span class="icon">🏆</span><span>Rewards</span></button>
+          <button class="nav-item" data-page="notifications"><span class="icon">!</span><span>Notifications</span><span id="notificationBadge" class="notification-badge hidden">0</span></button>
+          <button class="nav-item" data-page="profile"><span class="icon">P</span><span>Profile</span></button>
+        </nav>
+        <div class="sidebar-footer"><button id="logoutBtn" class="btn btn-outline">Logout</button></div>
+      </aside>
+
+      <main class="main-content">
+        <button id="sidebarToggle" class="btn btn-outline sidebar-toggle" type="button" aria-label="Toggle navigation">Menu</button>
+
+        <div id="dashboardPage" class="page-content active">
+          <header class="page-header"><h1>Dashboard</h1><p>Welcome back! Here's an overview of your lesson planning.</p></header>
+          <div class="dashboard-grid">
+            <div class="stat-card"><h3>Lesson Plans</h3><p class="stat-number" id="lessonPlanCount">0</p><small>Total created</small></div>
+            <div class="stat-card"><h3>Points</h3><p class="stat-number" id="userPoints">0</p><small>Gamification rewards</small></div>
+            <div class="stat-card"><h3>Level</h3><p class="stat-number" id="userLevel">Beginner</p><small>Current achievement</small></div>
+            <div class="stat-card"><h3>Activities</h3><p class="stat-number" id="activityCount">0</p><small>Shared with community</small></div>
+          </div>
+          <section class="recent-section"><h2>Recent Lesson Plans</h2><div id="recentLessonPlans" class="lessons-list"><p class="empty-state">No lesson plans yet. Create one to get started!</p></div></section>
+        </div>
+
+        <div id="lessonPlannerPage" class="page-content lesson-planner-wrap">
+          <div class="gas-planner-body"><div class="gas-container">
+            <h1 class="gas-title">Class Planning Program</h1>
+            <div class="gas-main-content">
+              <div class="gas-input-table"><table><thead><tr><th>NAME</th><th>BOOK</th><th>LESSON</th></tr></thead><tbody id="inputBody"></tbody></table></div>
+              <div class="gas-button-container">
+                <button type="button" class="gas-generate-btn" onclick="processData()">Gerar Aula</button>
+                <button type="button" class="gas-generate-btn" onclick="toggleObjectivesColumn()">Mostrar/Ocultar Learning Objectives</button>
+                <img src="https://cdn.wizard.com.br/wp-content/uploads/2019/10/01155611/logo-aguia-wizard-by-pearson-idiomas.png" class="gas-logo" alt="Wizard logo">
+                <div class="gas-horario-container"><label for="horario">Horário da aula</label><input type="time" id="horario"></div>
+              </div>
+              <div class="gas-input-table"><table><thead><tr><th>NAME</th><th>BOOK</th><th>LESSON</th><th>CHECKING TIME</th><th>LEARNING OBJECTIVES</th></tr></thead><tbody id="outputBody"></tbody></table></div>
+            </div>
+            <div class="planner-export-panel">
+              <label for="output">Copiar resultado para Excel:</label>
+              <textarea id="output" readonly rows="5"></textarea>
+              <div class="planner-actions"><button type="button" onclick="copiarResultado()" class="gas-generate-btn">Copiar para Excel</button><button id="aiReviewBtn" type="button" class="ai-review-button">✨ Revisar plano com IA</button></div>
+            </div>
+            <section id="aiReviewPanel" class="ai-review-panel hidden" aria-live="polite">
+              <div class="ai-review-heading"><div><span class="ai-eyebrow">Wiz IA</span><h2>Sugestões pedagógicas</h2></div><button id="closeAiReviewBtn" class="ai-close-button" type="button" aria-label="Fechar sugestões">×</button></div>
+              <p>A IA analisa o planejamento gerado e sugere ajustes objetivos, atividades e materiais. Revise antes de usar.</p>
+              <textarea id="aiReviewOutput" readonly rows="9" placeholder="Gere um plano primeiro e depois peça a revisão da IA."></textarea>
+              <div class="ai-review-footer"><small>Ao usar esta opção, os dados do plano são enviados à Gemini para gerar sugestões.</small><button id="copyAiReviewBtn" type="button" class="text-copy-button">Copiar sugestões</button></div>
+            </section>
+            <div class="gas-footer">Eduardo&#160;Moretti</div>
+          </div></div>
+        </div>
+
+        <div id="communityPage" class="page-content">
+          <header class="page-header"><h1>Community</h1><p>Share and discover teaching activities with the community.</p></header>
+          <div class="community-container">
+            <section class="upload-section"><h2>Share Activity</h2><form id="uploadForm" class="upload-form">
+              <div class="form-group"><label for="activityTitle">Title</label><input type="text" id="activityTitle" required></div>
+              <div class="form-group"><label for="activityDescription">Description</label><textarea id="activityDescription" rows="3"></textarea></div>
+              <div class="form-group"><label for="activityCategory">Category</label><select id="activityCategory"><option value="general">General</option><option value="grammar">Grammar</option><option value="vocabulary">Vocabulary</option><option value="speaking">Speaking</option><option value="writing">Writing</option><option value="reading">Reading</option></select></div>
+              <div class="form-group"><label for="activityFileUrl">Material URL</label><input type="url" id="activityFileUrl" placeholder="https://drive.google.com/..."></div>
+              <button type="submit" class="btn btn-primary">Share Activity</button>
+            </form></section>
+            <section class="activities-section"><h2>Community Activities</h2><div id="activitiesList" class="activities-grid"><p class="empty-state">No activities shared yet. Be the first!</p></div></section>
+          </div>
+        </div>
+
+        <div id="rewardsPage" class="page-content">
+          <header class="page-header"><h1>Rewards &amp; Leaderboard</h1><p>Track your progress and compete with other teachers.</p></header>
+          <div class="rewards-container"><section class="user-rewards"><h2>Your Rewards</h2><div class="rewards-display"><div class="reward-item"><h3>Points</h3><p class="reward-value" id="dashboardPoints">0</p></div><div class="reward-item"><h3>Level</h3><p class="reward-value" id="dashboardLevel">Beginner</p></div><div class="reward-item"><h3>Badges</h3><p class="reward-value" id="badgeCount">0</p></div></div><button id="dailyBonusBtn" class="btn btn-secondary">Claim Daily Bonus</button><div class="badges-section"><h3>Your Badges</h3><div id="badgesList" class="badges-list"><p class="empty-state">No badges yet.</p></div></div></section><section class="leaderboard"><h2>Top Teachers</h2><table class="leaderboard-table table"><thead><tr><th>Rank</th><th>Teacher</th><th>Points</th><th>Level</th></tr></thead><tbody id="leaderboardBody"><tr><td colspan="4" class="empty-state">Loading...</td></tr></tbody></table></section></div>
+        </div>
+
+        <div id="notificationsPage" class="page-content"><header class="page-header"><h1>Notifications</h1><p>Keep track of likes, badge unlocks, and teacher activity.</p></header><div class="notifications-panel"><div class="section-heading"><h2>Recent Updates</h2><button id="markAllNotificationsReadBtn" class="btn btn-outline" type="button">Mark all read</button></div><div id="notificationsList" class="notifications-list"><p class="empty-state">No notifications yet.</p></div></div></div>
+
+        <div id="profilePage" class="page-content"><header class="page-header"><h1>Profile</h1><p>Keep your teacher profile current for the community.</p></header><div class="profile-container"><section class="profile-card"><h2>Edit Profile</h2><div class="profile-preview"><div><h2 id="profilePreviewName">Teacher</h2><p id="profilePreviewBio">No bio yet.</p><small id="profilePreviewMeta"></small></div></div><form id="profileForm" class="profile-form"><div class="form-group"><label for="profileName">Name</label><input type="text" id="profileName" required></div><div class="form-group"><label for="profileBio">Bio</label><textarea id="profileBio" rows="4" placeholder="Tell colleagues about your teaching style, classes, and interests."></textarea></div><div class="form-row-split"><div class="form-group"><label for="profileLocation">Location</label><input type="text" id="profileLocation" placeholder="City, school, or unit"></div><div class="form-group"><label for="profilePhone">Contact</label><input type="text" id="profilePhone" placeholder="WhatsApp, email, or preferred contact"></div></div><div class="form-group"><label for="profileSpecialties">Specialties</label><input type="text" id="profileSpecialties" placeholder="Kids, teens, conversation, grammar, exams"></div><button type="submit" class="btn btn-primary">Save Profile</button></form></section></div></div>
+      </main>
+    </div>
+  </div>
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+  <script src="frontend/js/config.js"></script>
+  <script src="frontend/js/api.js"></script>
+  <script src="frontend/js/ui.js"></script>
+  <script src="frontend/js/auth.js"></script>
+  <script src="frontend/js/dashboard.js"></script>
+  <script src="frontend/js/lessonPlanner.js"></script>
+  <script src="frontend/js/community.js"></script>
+  <script src="frontend/js/rewards.js"></script>
+  <script src="frontend/js/notifications.js"></script>
+  <script src="frontend/js/profile.js"></script>
+  <script src="frontend/js/app.js"></script>
 </body>
 </html>

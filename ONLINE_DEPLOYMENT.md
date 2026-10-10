@@ -18,6 +18,24 @@ google-apps-script/WizPlanningOnlineBackend.gs
 
 Then deploy a new Web App version in Apps Script.
 
+### Gemini AI review
+
+The planner's AI review is proxied by Apps Script, so the Gemini API key is
+never sent to GitHub Pages or stored in the repository. In the Apps Script
+project, add these entries under **Project Settings → Script Properties**:
+
+| Property | Value |
+| --- | --- |
+| `GEMINI_API_KEY` | The Gemini API key |
+| `GEMINI_MODEL` | Optional; defaults to `gemini-flash-latest` |
+| `GEMINI_DAILY_REVIEW_LIMIT` | Optional global daily limit; defaults to `100` reviews |
+
+After saving the properties, authorize external requests as the Apps Script
+owner if Google prompts, then deploy a **new version** of the Web App. The daily
+limit is shared by all visitors to this Web App deployment; it helps cap usage,
+but it is not per-user authentication. Do not put the API key in frontend files,
+GitHub, or a public issue. Rotate the key if it has been exposed publicly.
+
 ## What Is Online In Google Sheets
 
 - Users
