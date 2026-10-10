@@ -70,7 +70,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .auth-panel { background: #fff; border: 1px solid #eeebea; border-radius: 17px; margin: 0; padding: 1.25rem 1.3rem; }
 .auth-panel h3 { font-family: Manrope, sans-serif; font-size: .98rem; margin: 0 0 1rem; }
 .auth-form .form-group { margin-bottom: .85rem; }
+.auth-field-hint { color: #8b838d; display: block; font-size: .64rem; line-height: 1.45; margin-top: .35rem; }
 .auth-form .btn { width: 100%; }
+.auth-form .btn[disabled] { cursor: progress; filter: saturate(.72); opacity: .75; }
 .auth-divider { color: #928e93; font-size: .7rem; letter-spacing: .05em; margin: 1rem 0; }
 .auth-divider::before, .auth-divider::after { width: 30%; }
 .auth-divider::before { background: linear-gradient(90deg, transparent, var(--line)); }.auth-divider::after { background: linear-gradient(90deg, var(--line), transparent); }
@@ -181,6 +183,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .text-action, .focus-card__link { background: none; border: 0; color: #923b4b; cursor: pointer; font-size: .68rem; font-weight: 700; padding: .4rem 0; transition: color .2s, transform .2s; }
 .text-action:hover, .focus-card__link:hover { color: #6f2634; transform: translateX(2px); }
 .lessons-list { gap: .48rem; }
+.recent-plans-toggle { align-items: center; background: linear-gradient(135deg, #fbf8f3, #fff); border: 1px solid #eee5da; border-radius: 11px; color: #865f48; cursor: pointer; display: inline-flex; font: inherit; font-size: .72rem; font-weight: 750; justify-content: center; margin-top: .15rem; min-height: 42px; padding: .65rem 1rem; transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.recent-plans-toggle:hover { background: #f7f0e5; border-color: #dfcda9; box-shadow: 0 7px 18px rgba(70, 50, 34, .07); transform: translateY(-1px); }
+.recent-plans-toggle:focus-visible { outline: 3px solid rgba(173, 134, 74, .35); outline-offset: 2px; }
 .lesson-item { align-items: center; background: #fff; border: 1px solid #f0edec; border-radius: 11px; padding: .76rem .85rem; }
 .lesson-item::before { background: #c5a775; border-radius: 2px; content: ""; flex: 0 0 auto; height: 26px; margin-right: .8rem; width: 3px; }
 .lesson-item:hover { border-color: #e0d4d1; box-shadow: 0 7px 18px rgba(50,38,43,.05); transform: translateY(-1px); }

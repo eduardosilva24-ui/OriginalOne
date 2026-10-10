@@ -1,5 +1,5 @@
 // WizPlanning: standalone Google Apps Script project (all Apps Script source is here).
-var WIZPLANNING_GAS_BUILD_ID = "ai-diagnostics-20261010-1";
+var WIZPLANNING_GAS_BUILD_ID = "unique-teacher-accounts-20261010-1";
 // BEGIN PLANNER CORE
 
 function doGet(e) {
@@ -841,7 +841,7 @@ var SHEETS = {
 };
 
 var HEADERS = {
-  USERS: ["id", "name", "bio", "photo_url", "created_at"],
+  USERS: ["id", "name", "bio", "photo_url", "created_at", "email"],
   MEDALS: ["id", "user_id", "medal_name", "date"],
   NOTIFICATIONS: ["id", "user_id", "message", "read", "timestamp"],
   LESSON_PLANS: ["id", "user_id", "student_name", "book", "lesson", "objectives", "check_time", "notes", "created_at", "updated_at"],
@@ -869,9 +869,9 @@ function handleApiGet_(e) {
 
     switch (action) {
       case "getUsers":
-        return success_(getUsers());
+        return success_(getUsers().map(function (user) { return publicUser_(user); }));
       case "getUser":
-        return success_(getUser(requireParam_(params, "userId")));
+        return success_(publicUser_(getUser(requireParam_(params, "userId"))));
       case "getMedals":
         return success_(getMedals(requireParam_(params, "userId")));
       case "getNotifications":
@@ -967,6 +967,13 @@ function doPost(e) {
 
 function getUsers() {
   return readRecords_(SHEETS.USERS, HEADERS.USERS);
+}
+
+function publicUser_(user) {
+  if (!user) return user;
+  var safeUser = Object.assign({}, user);
+  delete safeUser.email;
+  return safeUser;
 }
 
 function reviewLessonWithAI_(data, requestId) {
@@ -1201,12 +1208,27 @@ function getUser(userId) {
 }
 
 function createUser(data) {
+  var name = String(requireParam_(data, "name")).replace(/\s+/g, " ").trim();
+  var email = normalizeEmail_(requireParam_(data, "email"));
+  if (name.length < 2 || name.length > 80) throw new Error("O nome deve ter entre 2 e 80 caracteres.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Informe um e-mail válido.");
+
+  var existingUsers = readRecords_(SHEETS.USERS, HEADERS.USERS);
+  var normalizedName = normalizeAccountName_(name);
+  if (existingUsers.some(function (existing) { return normalizeEmail_(existing.email) === email; })) {
+    throw new Error("Já existe uma conta com este e-mail.");
+  }
+  if (existingUsers.some(function (existing) { return normalizeAccountName_(existing.name) === normalizedName; })) {
+    throw new Error("Já existe uma conta com este nome.");
+  }
+
   var user = {
     id: generateId_("user"),
-    name: requireParam_(data, "name"),
+    name: name,
     bio: optionalParam_(data, "bio", ""),
     photo_url: optionalParam_(data, "photo_url", ""),
-    created_at: timestamp_()
+    created_at: timestamp_(),
+    email: email
   };
   appendRecord_(SHEETS.USERS, HEADERS.USERS, user);
   ensureRewardRecord_(user.id);
@@ -1220,7 +1242,17 @@ function updateUser(data) {
   if (!found) throw new Error("User not found: " + userId);
 
   var user = found.object;
-  if (hasOwn_(data, "name")) user.name = data.name;
+  if (hasOwn_(data, "name")) {
+    var nextName = String(data.name || "").trim();
+    if (nextName.length < 2 || nextName.length > 80) throw new Error("O nome deve ter entre 2 e 80 caracteres.");
+    if (normalizeAccountName_(nextName) !== normalizeAccountName_(user.name)) {
+      var normalizedName = normalizeAccountName_(nextName);
+      if (readRecords_(SHEETS.USERS, HEADERS.USERS).some(function (existing) {
+        return String(existing.id) !== String(userId) && normalizeAccountName_(existing.name) === normalizedName;
+      })) throw new Error("Já existe uma conta com este nome.");
+    }
+    user.name = nextName;
+  }
   if (hasOwn_(data, "bio")) user.bio = data.bio;
   if (hasOwn_(data, "photo_url")) user.photo_url = data.photo_url;
 
@@ -1696,10 +1728,48 @@ function ensureSheet_(sheetName, headers) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     return sheet;
   }
-  var existing = sheet.getRange(1, 1, 1, headers.length).getDisplayValues()[0];
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  }
+  var existingWidth = headers.length;
+  var existing = sheet.getRange(1, 1, 1, existingWidth).getDisplayValues()[0];
   var isEmpty = existing.every(function (value) { return String(value || "").trim() === ""; });
   if (isEmpty) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  else {
+    var compatibleHeaders = true;
+    var firstMissingHeader = -1;
+    for (var existingIndex = 0; existingIndex < existing.length; existingIndex++) {
+      var existingHeader = String(existing[existingIndex] || "").trim();
+      if (!existingHeader && firstMissingHeader < 0) firstMissingHeader = existingIndex;
+      if (existingHeader && (firstMissingHeader >= 0 || existingHeader !== headers[existingIndex])) {
+        compatibleHeaders = false;
+        break;
+      }
+    }
+    if (compatibleHeaders && firstMissingHeader >= 0) {
+      for (var headerIndex = firstMissingHeader; headerIndex < headers.length; headerIndex++) {
+        var headerCell = String(sheet.getRange(1, headerIndex + 1).getDisplayValue() || "").trim();
+        if (headerCell && headerCell !== headers[headerIndex]) {
+          compatibleHeaders = false;
+          break;
+        }
+      }
+      if (compatibleHeaders) {
+        for (var fillIndex = firstMissingHeader; fillIndex < headers.length; fillIndex++) {
+          sheet.getRange(1, fillIndex + 1).setValue(headers[fillIndex]);
+        }
+      }
+    }
+  }
   return sheet;
+}
+
+function normalizeEmail_(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeAccountName_(value) {
+  return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 function getSheet_(sheetName, headers) {

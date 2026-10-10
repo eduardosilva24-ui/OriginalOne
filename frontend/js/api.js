@@ -86,6 +86,7 @@ class API {
   static appsScriptCreateUser(user) {
     return this.appsScriptAction('createUser', {
       name: user?.name || '',
+      email: user?.email || '',
       bio: user?.bio || '',
       photo_url: user?.photo_url || ''
     }, { method: 'POST' });
@@ -250,13 +251,18 @@ class API {
 
     if (path === '/auth/register' && method === 'POST') {
       const name = String(body.name || '').trim();
+      const email = String(body.email || '').trim().toLowerCase();
       if (!name) throw API._makeHttpError(400, { error: 'Name is required' });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw API._makeHttpError(400, { error: 'Informe um e-mail válido.' });
+      }
       const created = await this.appsScriptCreateUser({
         name,
+        email,
         bio: '',
         photo_url: body.photo_url || ''
       });
-      const user = this.normalizeAppsScriptUser({ ...created, email: body.email || '' });
+      const user = this.normalizeAppsScriptUser({ ...created, email });
       return {
         token: `apps-script-${user.id}-${Date.now()}`,
         user
@@ -267,9 +273,9 @@ class API {
       const identifier = String(body.email || body.name || body.userId || '').trim().toLowerCase();
       const users = await this.appsScriptGetUsers();
       const user = (users || []).find(item => {
-        const name = String(item.name || '').trim().toLowerCase();
+        const name = this.normalizeTeacherName(item.name);
         const id = String(item.id || '').trim().toLowerCase();
-        return identifier && (name === identifier || id === identifier);
+        return identifier && (name === this.normalizeTeacherName(identifier) || id === identifier);
       });
 
       if (!user) {
@@ -509,10 +515,22 @@ class API {
     };
   }
 
+  static normalizeTeacherName(value) {
+    return String(value || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
   static ensureStaticSeed() {
     const demoEmail = 'eduardomoretti@wizard.com';
     let users = this.readStaticStore(this.staticKeys.users, []);
-    const hasDemo = users.some(user => String(user.email || '').toLowerCase() === demoEmail);
+    const hasDemo = users.some(user =>
+      String(user.email || '').trim().toLowerCase() === demoEmail ||
+      this.normalizeTeacherName(user.name) === this.normalizeTeacherName('Eduardo Moretti')
+    );
 
     if (!hasDemo) {
       users.unshift({
@@ -897,10 +915,19 @@ class API {
       if (!name || !email || !password) {
         throw API._makeHttpError(400, { error: 'Missing required fields' });
       }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw API._makeHttpError(400, { error: 'Informe um e-mail válido.' });
+      }
+      if (name.length < 2 || name.length > 80) {
+        throw API._makeHttpError(400, { error: 'O nome deve ter entre 2 e 80 caracteres.' });
+      }
 
       const users = this.readStaticStore(this.staticKeys.users, []);
-      if (users.some(user => String(user.email || '').toLowerCase() === email)) {
-        throw API._makeHttpError(409, { error: 'Email already registered' });
+      if (users.some(user => String(user.email || '').trim().toLowerCase() === email)) {
+        throw API._makeHttpError(409, { error: 'Já existe uma conta com este e-mail.' });
+      }
+      if (users.some(user => this.normalizeTeacherName(user.name) === this.normalizeTeacherName(name))) {
+        throw API._makeHttpError(409, { error: 'Já existe uma conta com este nome.' });
       }
 
       const user = {
@@ -939,9 +966,20 @@ class API {
       const current = this.requireStaticUser();
       const users = this.readStaticStore(this.staticKeys.users, []);
       const index = users.findIndex(user => String(user.id) === String(current.id));
+      const nextName = String(body.name || current.name || '').replace(/\s+/g, ' ').trim();
+      if (!nextName || nextName.length < 2 || nextName.length > 80) {
+        throw API._makeHttpError(400, { error: 'O nome deve ter entre 2 e 80 caracteres.' });
+      }
+      if (this.normalizeTeacherName(nextName) !== this.normalizeTeacherName(users[index]?.name)) {
+        const nameIsTaken = users.some(user =>
+          String(user.id) !== String(current.id) &&
+          this.normalizeTeacherName(user.name) === this.normalizeTeacherName(nextName)
+        );
+        if (nameIsTaken) throw API._makeHttpError(409, { error: 'Já existe uma conta com este nome.' });
+      }
       users[index] = {
         ...users[index],
-        name: String(body.name || current.name || '').trim(),
+        name: nextName,
         bio: String(body.bio || '').trim(),
         location: String(body.location || '').trim(),
         phone: String(body.phone || '').trim(),

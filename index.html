@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="gas-planner.css">
   <link rel="stylesheet" href="animations.css">
   <link rel="stylesheet" href="frontend/css/redesign.css">
+  <link rel="stylesheet" href="frontend/css/ownership-notice.css">
 </head>
 <body>
   <div id="app">
@@ -55,8 +56,8 @@
           <div class="auth-divider"><span>ou comece por aqui</span></div>
           <form id="registerForm" class="auth-form auth-panel auth-register">
             <h3>Criar uma conta</h3>
-            <div class="form-group"><label for="registerName">Nome</label><input type="text" id="registerName" name="name" autocomplete="name" placeholder="Como podemos chamar você?" required></div>
-            <div class="form-group"><label for="registerEmail">E-mail</label><input type="email" id="registerEmail" name="email" autocomplete="email" placeholder="voce@exemplo.com" required></div>
+            <div class="form-group"><label for="registerName">Nome</label><input type="text" id="registerName" name="name" autocomplete="name" minlength="2" maxlength="80" placeholder="Como podemos chamar você?" required><small class="auth-field-hint">Cada nome pode identificar apenas uma conta de professor.</small></div>
+            <div class="form-group"><label for="registerEmail">E-mail</label><input type="email" id="registerEmail" name="email" autocomplete="email" maxlength="254" placeholder="voce@exemplo.com" required><small class="auth-field-hint">O e-mail também precisa ser exclusivo.</small></div>
             <div class="form-group"><label for="registerPassword">Senha</label><input type="password" id="registerPassword" name="password" autocomplete="new-password" placeholder="Crie uma senha segura" required></div>
             <button type="submit" class="btn btn-secondary">Criar minha conta</button>
           </form>
@@ -154,10 +155,27 @@
   </div>
   <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
   <dialog id="ownershipNoticeDialog" class="ownership-notice" aria-labelledby="ownershipNoticeTitle" aria-describedby="ownershipNoticeIntro">
+    <div class="ownership-notice__particles" aria-hidden="true">
+      <i>✦</i><i>◆</i><i>✧</i><i>◆</i><i>✦</i><i>◆</i><i>✧</i><i>◆</i><i>✦</i><i>◆</i><i>✧</i><i>◆</i><i>✦</i><i>◆</i><i>✧</i><i>◆</i>
+    </div>
     <div class="ownership-notice__frame">
-      <header class="ownership-notice__header"><div class="ownership-notice__identity"><span class="ownership-notice__seal" aria-hidden="true">W</span><span>WIZPLANNING <i>•</i> AVISO INSTITUCIONAL</span></div><button class="ownership-notice__icon-close" type="button" data-ownership-close aria-label="Fechar aviso" autofocus>×</button></header>
-      <div class="ownership-notice__body"><p class="ownership-notice__eyebrow">Autoria · continuidade · responsabilidade</p><h2 id="ownershipNoticeTitle">Compromisso com a autoria e a transparência</h2><p id="ownershipNoticeIntro" class="ownership-notice__intro">O código original e a concepção do WizPlanning são de autoria de <strong>Eduardo Moretti Silva</strong>. Componentes e materiais de terceiros permanecem sujeitos aos direitos e às licenças de seus titulares. Este aviso esclarece a atribuição de autoria e as condições gerais de continuidade do aplicativo.</p><div class="ownership-notice__sections"><section><h3>Autoria e uso</h3><p>Os elementos originais do WizPlanning são atribuídos aos respectivos autores e titulares de direitos. A utilização, reprodução ou redistribuição do código deve respeitar a licença aplicável e os direitos de terceiros. Apresentar deliberadamente o trabalho de Eduardo como criação própria poderá caracterizar apropriação indevida de autoria ou plágio, conforme as circunstâncias.</p></section><section><h3>Manutenção e disponibilidade</h3><p>A decisão de manter, atualizar ou descontinuar o aplicativo cabe a Eduardo, a seu critério. Salvo compromisso específico formalizado à parte, não há garantia de disponibilidade contínua, suporte, compatibilidade futura ou correção de falhas. Uma interrupção, indisponibilidade ou obsolescência não cria, por si só, obrigação de reparo ou atualização.</p></section></div><p class="ownership-notice__disclaimer">Aviso informativo. Ele não substitui a licença do projeto, contratos aplicáveis ou orientação jurídica.</p></div>
+      <div class="ownership-notice__crown" aria-hidden="true"><span>♛</span></div>
+      <header class="ownership-notice__header"><div class="ownership-notice__identity"><span class="ownership-notice__seal" aria-hidden="true">W</span><span>WIZPLANNING <i>•</i> AVISO DE AUTORIA</span></div><button class="ownership-notice__icon-close" type="button" data-ownership-close aria-label="Fechar aviso" autofocus>×</button></header>
+      <main class="ownership-notice__body">
+        <p class="ownership-notice__eyebrow">✦ &nbsp; Autoria · continuidade · responsabilidade &nbsp; ✦</p>
+        <h2 id="ownershipNoticeTitle">Este código pertence a <strong>Eduardo Moretti Silva</strong></h2>
+        <p class="ownership-notice__subtitle">Criador e autor do WizPlanning</p>
+        <div class="ownership-notice__divider" aria-hidden="true"><span>◆</span></div>
+        <p id="ownershipNoticeIntro" class="ownership-notice__intro">O código original e a concepção do WizPlanning são de autoria de <strong>Eduardo Moretti Silva</strong>. Componentes e materiais de terceiros permanecem sujeitos aos direitos e às licenças de seus titulares. Este aviso esclarece a atribuição de autoria e as condições gerais de continuidade do aplicativo.</p>
+        <div class="ownership-notice__sections">
+          <section><span class="ownership-notice__section-icon" aria-hidden="true">♜</span><div><h3>Autoria e uso</h3><p>Os elementos originais do WizPlanning são atribuídos aos respectivos autores e titulares de direitos. A utilização, reprodução ou redistribuição do código deve respeitar a licença aplicável e os direitos de terceiros. Apresentar deliberadamente o trabalho de Eduardo como criação própria poderá caracterizar apropriação indevida de autoria ou plágio, conforme as circunstâncias.</p></div></section>
+          <section><span class="ownership-notice__section-icon" aria-hidden="true">⚙</span><div><h3>Manutenção e disponibilidade</h3><p>A decisão de manter, atualizar ou descontinuar o aplicativo cabe a Eduardo, a seu critério. Salvo compromisso específico formalizado à parte, não há garantia de disponibilidade contínua, suporte, compatibilidade futura ou correção de falhas. Uma interrupção, indisponibilidade ou obsolescência não cria, por si só, obrigação de reparo ou atualização.</p></div></section>
+        </div>
+        <div class="ownership-notice__divider ownership-notice__divider--lower" aria-hidden="true"><span>◆</span></div>
+        <p class="ownership-notice__motto">RESPEITE A AUTORIA.<br>VALORIZE O TRABALHO ORIGINAL.</p>
+      </main>
       <footer class="ownership-notice__footer"><span class="ownership-notice__shortcut"><kbd>F2</kbd><span>atalho para abrir este aviso</span></span><button class="ownership-notice__confirm" type="button" data-ownership-close>Entendi</button></footer>
+      <div class="ownership-notice__bottom-seal" aria-hidden="true"><span>♛</span><b>E</b><small>✦</small></div>
     </div>
   </dialog>
   <script src="frontend/js/config.js"></script>

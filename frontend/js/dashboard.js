@@ -1,5 +1,8 @@
 class Dashboard {
   static lastLoadTime = 0;
+  static recentLessonPlans = [];
+  static recentPlansExpanded = false;
+  static recentPlansPreviewCount = 4;
 
   static init() {
     this.setupNavigation();
@@ -170,8 +173,10 @@ class Dashboard {
 
     this.ensureRefreshButton(cont);
     cont.replaceChildren();
+    this.recentLessonPlans = Array.isArray(plans) ? plans : [];
 
-    if (!plans.length) {
+    if (!this.recentLessonPlans.length) {
+      this.recentPlansExpanded = false;
       const empty = document.createElement('p');
       empty.className = 'empty-state';
       empty.textContent = 'Ainda não há planos. ';
@@ -187,7 +192,11 @@ class Dashboard {
       return;
     }
 
-    plans.forEach(plan => {
+    const visiblePlans = this.recentPlansExpanded
+      ? this.recentLessonPlans
+      : this.recentLessonPlans.slice(0, this.recentPlansPreviewCount);
+
+    visiblePlans.forEach(plan => {
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'lesson-item';
@@ -205,6 +214,22 @@ class Dashboard {
       item.addEventListener('click', () => this.viewLesson(plan.id));
       cont.appendChild(item);
     });
+
+    if (this.recentLessonPlans.length > this.recentPlansPreviewCount) {
+      const remainingCount = this.recentLessonPlans.length - this.recentPlansPreviewCount;
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'recent-plans-toggle';
+      toggle.setAttribute('aria-expanded', String(this.recentPlansExpanded));
+      toggle.textContent = this.recentPlansExpanded
+        ? 'Mostrar menos aulas ↑'
+        : `Ver mais ${remainingCount} ${remainingCount === 1 ? 'aula' : 'aulas'} ↓`;
+      toggle.addEventListener('click', () => {
+        this.recentPlansExpanded = !this.recentPlansExpanded;
+        this.displayRecentLessonPlans(this.recentLessonPlans);
+      });
+      cont.appendChild(toggle);
+    }
   }
 
   static viewLesson(id) {

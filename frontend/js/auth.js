@@ -93,9 +93,19 @@ class Auth {
 
   static async handleRegister(e) {
     e.preventDefault();
-    const name = document.getElementById('registerName').value.trim();
+    const registerForm = document.getElementById('registerForm');
+    const submitButton = registerForm.querySelector('button[type="submit"]');
+    if (submitButton?.disabled) return;
+
+    const name = document.getElementById('registerName').value.replace(/\s+/g, ' ').trim();
     const email = document.getElementById('registerEmail').value.trim().toLowerCase();
     const password = document.getElementById('registerPassword').value;
+    const originalButtonText = submitButton?.textContent || '';
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.setAttribute('aria-busy', 'true');
+      submitButton.textContent = 'Criando conta…';
+    }
 
     try {
       const result = await window.API.register(name, email, password);
@@ -109,6 +119,12 @@ class Auth {
       document.getElementById('registerForm').reset();
     } catch (error) {
       window.UI?.showToast(`Não foi possível criar a conta: ${error.message}`, 'error');
+    } finally {
+      if (submitButton?.isConnected) {
+        submitButton.disabled = false;
+        submitButton.removeAttribute('aria-busy');
+        submitButton.textContent = originalButtonText;
+      }
     }
   }
 
