@@ -981,18 +981,16 @@ function reviewLessonWithAI_(data, requestId) {
   var apiKey = String(properties.getProperty("GEMINI_API_KEY") || "").trim();
   if (!apiKey) throw new Error("A IA ainda não está configurada no Apps Script.");
 
-  var model = String(properties.getProperty("GEMINI_MODEL") || "gemini-flash-latest").trim();
+  var model = String(properties.getProperty("GEMINI_MODEL") || "gemini-3.8-flash").trim();
   if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new Error("O modelo da IA configurado é inválido.");
 
   var prompt = "Revise este planejamento de aula:\n\n" + planText;
+  var systemInstruction = "You are Wiz IA, a pedagogical assistant for English-language teachers. Analyze only the submitted lesson plan, whose rows contain student, book, lesson, optional check time, and learning objective. Reply in Brazilian Portuguese as a concise plain-text report with exactly these sections, in this order: INTRODUÇÃO; PEER WORK (DUPLAS/GRUPOS); SUGESTÕES DE ATIVIDADES EXTRAS. Under INTRODUÇÃO, include one short bullet for every student in the plan, preserving the supplied name, book, and lesson, and faithfully explain in Portuguese what that student's stated learning objective means they will learn or practice. Never omit a student; if an objective is absent or unclear, say so instead of guessing. Under PEER WORK, suggest pairs or groups only when the supplied objectives show the same or clearly overlapping skills; name the students, explain the shared objective, and propose one simple joint task. Do not infer ability, personality, age, or schedule availability from names, lesson numbers, or check times. If the plan does not support a compatible group, say no reliable pairing was identified and do not force one. Under SUGESTÕES DE ATIVIDADES EXTRAS, suggest at least one optional, practical activity for each distinct objective or compatible objective cluster; identify the target student(s), brief steps, and simple materials or duration when useful. Activities must complement, not replace, the supplied lesson, and must not be presented as content from the book. Use only information in the plan, do not invent learning objectives, and do not speculate about personal data. Keep bullets brief; when there are many students, prioritize one accurate introduction bullet per student before adding detail.";
   var payload = {
-    systemInstruction: {
-      parts: [{
-        text: "You are Wiz IA, a pedagogical assistant for English-language teachers. Analyze only the submitted lesson plan, whose rows contain student, book, lesson, optional check time, and learning objective. Reply in Brazilian Portuguese as a concise plain-text report with exactly these sections, in this order: INTRODUÇÃO; PEER WORK (DUPLAS/GRUPOS); SUGESTÕES DE ATIVIDADES EXTRAS. Under INTRODUÇÃO, include one short bullet for every student in the plan, preserving the supplied name, book, and lesson, and faithfully explain in Portuguese what that student's stated learning objective means they will learn or practice. Never omit a student; if an objective is absent or unclear, say so instead of guessing. Under PEER WORK, suggest pairs or groups only when the supplied objectives show the same or clearly overlapping skills; name the students, explain the shared objective, and propose one simple joint task. Do not infer ability, personality, age, or schedule availability from names, lesson numbers, or check times. If the plan does not support a compatible group, say no reliable pairing was identified and do not force one. Under SUGESTÕES DE ATIVIDADES EXTRAS, suggest at least one optional, practical activity for each distinct objective or compatible objective cluster; identify the target student(s), brief steps, and simple materials or duration when useful. Activities must complement, not replace, the supplied lesson, and must not be presented as content from the book. Use only information in the plan, do not invent learning objectives, and do not speculate about personal data. Keep bullets brief; when there are many students, prioritize one accurate introduction bullet per student before adding detail."
-      }]
-    },
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.45, maxOutputTokens: 2400 }
+    model: model,
+    input: prompt,
+    system_instruction: systemInstruction,
+    generation_config: { max_output_tokens: 2400 }
   };
 
   var quotaReservation = consumeGeminiReviewQuota_(properties);
@@ -1002,7 +1000,7 @@ function reviewLessonWithAI_(data, requestId) {
   var fetchStartedAt = Date.now();
   try {
     response = UrlFetchApp.fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/interactions",
       {
         method: "post",
         contentType: "application/json",
@@ -1026,6 +1024,20 @@ function reviewLessonWithAI_(data, requestId) {
     throw fetchError;
   }
 
+  if (response.getResponseCode() === 503) {
+    console.warn(logPrefix + " Gemini returned HTTP 503; retrying once after a short backoff.");
+    Utilities.sleep(1000);
+    response = UrlFetchApp.fetch(
+      "https://generativelanguage.googleapis.com/v1beta/interactions",
+      {
+        method: "post",
+        contentType: "application/json",
+        headers: { "X-goog-api-key": apiKey },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      }
+    );
+  }
   var status = response.getResponseCode();
   console.log(logPrefix + " Gemini API returned HTTP " + status + " after " + (Date.now() - fetchStartedAt) + " ms.");
   var result = {};
@@ -1035,18 +1047,34 @@ function reviewLessonWithAI_(data, requestId) {
     throw new Error("O serviço de IA retornou uma resposta inválida.");
   }
   if (status < 200 || status >= 300) {
-    if (status === 401 || status === 403) throw new Error("A chave da IA está inválida ou sem acesso ao modelo.");
+    var providerError = result && result.error ? result.error : {};
+    var providerMessage = String(providerError.message || "");
+    if (apiKey) providerMessage = providerMessage.split(apiKey).join("[REDACTED]");
+    if (planText) providerMessage = providerMessage.split(planText).join("[PLAN REDACTED]");
+    providerMessage = providerMessage.replace(/AQ\.[A-Za-z0-9_-]{20,}/g, "[REDACTED]").replace(/[\r\n\t]+/g, " ").slice(0, 300);
+    console.error(logPrefix + " Gemini API error code=" + String(providerError.code || status) + " status=" + String(providerError.status || "unknown") + (providerMessage ? " message=" + providerMessage : ""));
+    if (status === 401 || status === 403) throw new Error("O Google Gemini rejeitou a chave ou o acesso ao modelo. Confirme as permissões da chave no Google AI Studio.");
     if (status === 429) throw new Error("O limite de uso da IA foi atingido. Tente novamente mais tarde.");
-    throw new Error("Não foi possível gerar a revisão com IA. Tente novamente.");
+    var requestError = new Error("O Google Gemini recusou a solicitação (HTTP " + status + ")." + (providerMessage ? " " + providerMessage : "") + " Consulte a execução " + safeRequestId_(requestId) + ".");
+    requestError.requestId = safeRequestId_(requestId);
+    throw requestError;
   }
 
-  var parts = result && result.candidates && result.candidates[0] && result.candidates[0].content
-    ? result.candidates[0].content.parts || []
-    : [];
-  var text = parts.map(function (part) { return String(part && part.text || ""); }).join("\n").trim();
+  var outputSteps = result && Array.isArray(result.steps) ? result.steps : [];
+  var outputParts = [];
+  outputSteps.forEach(function (step) {
+    if (!step || step.type !== "model_output" || !Array.isArray(step.content)) return;
+    step.content.forEach(function (part) {
+      if (part && part.type === "text" && part.text) outputParts.push(String(part.text));
+    });
+  });
+  var text = outputParts.join("\n").trim();
+  if (result && result.status === "failed" && !text) {
+    throw new Error("O Google Gemini não concluiu a revisão. Consulte a execução " + safeRequestId_(requestId) + ".");
+  }
   if (!text) throw new Error("A IA não retornou uma revisão. Tente novamente.");
   quotaCommitted = true;
-  return { text: text, model: model };
+  return { text: text, model: result.model || model, status: result.status || "completed" };
   } finally {
     if (!quotaCommitted) releaseGeminiReviewQuota_(properties, quotaReservation);
   }
