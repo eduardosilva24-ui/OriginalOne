@@ -2,7 +2,11 @@
 
 ## Backend
 
-Google Apps Script backend:
+The Apps Script project is intentionally a single-file project. The complete
+planner, its HTML interface, the Google Sheets API, and the Gemini review
+endpoint are all in `google-apps-script/Code.gs`.
+
+The published Google Apps Script Web App:
 
 ```text
 https://script.google.com/macros/s/AKfycbxwobTuDMafuitKSFXKzN6B95QRvdMRR00GrHMfC73C4n-8ks94atyTYbCeHdt7qGd3/exec
@@ -10,13 +14,17 @@ https://script.google.com/macros/s/AKfycbxwobTuDMafuitKSFXKzN6B95QRvdMRR00GrHMfC
 
 The frontend reads this URL from `frontend/js/config.js`.
 
-Paste the full backend from:
+In the Apps Script editor, keep only `Code.gs` and replace its contents with
+the full file from:
 
 ```text
-google-apps-script/WizPlanningOnlineBackend.gs
+google-apps-script/Code.gs
 ```
 
-Then deploy a new Web App version in Apps Script.
+The same `doGet` serves the planner interface when there is no `action` query
+parameter and serves JSON API requests when an `action` is provided. `doPost`
+handles writes and the AI review. After pasting the file, deploy a new Web App
+version in Apps Script.
 
 ### Gemini AI review
 
