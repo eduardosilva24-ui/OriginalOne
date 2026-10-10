@@ -19,7 +19,7 @@ function initTables() {
       const div = document.createElement('div');
       div.className = 'gas-editable-cell';
       div.contentEditable = 'true';
-      div.dataset.placeholder = j === 0 ? 'Name' : j === 1 ? 'Book' : 'Lesson';
+      div.dataset.placeholder = j === 0 ? 'Aluno' : j === 1 ? 'Livro' : 'Lição';
       td.appendChild(div);
       trIn.appendChild(td);
     }
@@ -53,6 +53,21 @@ function setupAiReview() {
   document.getElementById('copyAiReviewBtn')?.addEventListener('click', copyAiReview);
 }
 
+function fitAiReviewOutput(output) {
+  if (!output) return;
+  const maxHeight = Math.max(300, Math.floor(window.innerHeight * 0.68));
+  output.style.height = 'auto';
+  output.style.height = `${Math.min(output.scrollHeight, maxHeight)}px`;
+  output.style.overflowY = output.scrollHeight > maxHeight ? 'auto' : 'hidden';
+}
+
+window.addEventListener('resize', () => {
+  const panel = document.getElementById('aiReviewPanel');
+  if (panel && !panel.classList.contains('hidden')) {
+    fitAiReviewOutput(document.getElementById('aiReviewOutput'));
+  }
+});
+
 async function reviewCurrentPlanWithAI() {
   const planText = (currentOutput || document.getElementById('output')?.value || '').trim();
   if (!planText) {
@@ -67,10 +82,13 @@ async function reviewCurrentPlanWithAI() {
     window.UI?.setButtonLoading(button, true, 'Analisando...');
     panel?.classList.remove('hidden');
     if (output) output.value = 'A Wiz IA está preparando o relatório pedagógico…';
+    fitAiReviewOutput(output);
     const review = await window.API.reviewLessonWithAI(planText);
     if (output) output.value = review.text || '';
+    fitAiReviewOutput(output);
   } catch (error) {
     if (output) output.value = '';
+    fitAiReviewOutput(output);
     const requestReference = error.requestId ? ` (referência ${error.requestId})` : '';
     window.UI?.showToast(`Não foi possível gerar o relatório: ${error.message}${requestReference}`, 'error');
   } finally {
@@ -136,6 +154,7 @@ function fillOutput(res) {
   const outBody = document.getElementById('outputBody');
   if (textarea) textarea.value = res;
   if (!outBody) return;
+  document.querySelector('.table-empty-note')?.classList.toggle('hidden', Boolean(String(res || '').trim()));
   outBody.innerHTML = '';
   res.split('\n').forEach(line => {
     if (!line.trim()) return;

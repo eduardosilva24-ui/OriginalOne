@@ -32,6 +32,17 @@ if (/createHtmlOutputFromFile|createTemplateFromFile/.test(source)) {
   throw new Error("Code.gs still depends on an external Apps Script HTML file.");
 }
 
+const requiredAiReviewPatterns = [
+  [/max_output_tokens:\s*2400/, "the 2,400-token AI response cap"],
+  [/thinking_level:\s*["']low["']/, "low Gemini thinking level"],
+  [/providerStatus\s*!==\s*["']incomplete["']/, "incomplete Gemini response handling"],
+  [/function\s+isCompleteLessonReview_\s*\(/, "AI report section and student completeness validation"],
+  [/paridade[^\n]+número par[^\n]+número ímpar/i, "lesson-number parity rule"]
+];
+for (const [pattern, description] of requiredAiReviewPatterns) {
+  if (!pattern.test(source)) throw new Error(`Code.gs is missing ${description}.`);
+}
+
 const declarations = new Map();
 for (const [, name] of source.matchAll(/^\s*function\s+([\w$]+)\s*\(/gm)) {
   declarations.set(name, (declarations.get(name) || 0) + 1);

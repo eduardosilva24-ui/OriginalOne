@@ -985,40 +985,77 @@ function reviewLessonWithAI_(data, requestId) {
   if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new Error("O modelo da IA configurado é inválido.");
 
   var prompt = "Revise este planejamento de aula:\n\n" + planText;
-  var systemInstruction = "You are Wiz IA, a pedagogical assistant for English-language teachers. Analyze only the submitted lesson plan, whose rows contain student, book, lesson, optional check time, and learning objective. Reply in Brazilian Portuguese as a concise plain-text report with exactly these sections, in this order: INTRODUÇÃO; PEER WORK (DUPLAS/GRUPOS); SUGESTÕES DE ATIVIDADES EXTRAS. Under INTRODUÇÃO, include one short bullet for every student in the plan, preserving the supplied name, book, and lesson, and faithfully explain in Portuguese what that student's stated learning objective means they will learn or practice. Never omit a student; if an objective is absent or unclear, say so instead of guessing. Under PEER WORK, suggest pairs or groups only when the supplied objectives show the same or clearly overlapping skills; name the students, explain the shared objective, and propose one simple joint task. Do not infer ability, personality, age, or schedule availability from names, lesson numbers, or check times. If the plan does not support a compatible group, say no reliable pairing was identified and do not force one. Under SUGESTÕES DE ATIVIDADES EXTRAS, suggest at least one optional, practical activity for each distinct objective or compatible objective cluster; identify the target student(s), brief steps, and simple materials or duration when useful. Activities must complement, not replace, the supplied lesson, and must not be presented as content from the book. Use only information in the plan, do not invent learning objectives, and do not speculate about personal data. Keep bullets brief; when there are many students, prioritize one accurate introduction bullet per student before adding detail.";
-  var payload = {
-    model: model,
-    input: prompt,
-    system_instruction: systemInstruction,
-    generation_config: { max_output_tokens: 2400 }
-  };
+  var compactRetryInstruction = "\n\nRETENTATIVA DE COMPLETUDE: a resposta anterior não concluiu todas as seções ou todos os alunos. Gere agora o relatório completo, de forma mais concisa, sem ultrapassar o limite: mantenha os cinco títulos e a ordem exata; use uma frase objetiva por aluno; Peer Work apenas com elegibilidade confirmada ou a limitação dos dados; inclua Warm-up completo com nome, duração, materiais, objetivo, passos numerados e exemplos curtos em inglês; inclua Closing completo com nome, duração, materiais, execução e objetivo pedagógico; termine com orientação de 1–3 frases. Não omita aluno nem campo obrigatório e não repita explicações.";
+  var systemInstruction = [
+    "Você é o assistente pedagógico do WizPlanning, especializado no ensino de inglês e na metodologia Wizard by Pearson. Transforme exclusivamente os dados fornecidos em relatório profissional, personalizado, objetivo e aplicável.",
+    "PRECISÃO: os dados podem conter nome, livro, número da lição, objetivo/conteúdo, última lição estudada, observações e histórico. Considere somente o que estiver presente; a entrada habitual contém nome, livro, lição, horário opcional e objetivo. Preserve nomes, livros e lições e inclua todos. Não confunda lição atual com última estudada. Não invente conteúdo, objetivos, nível, dificuldade, personalidade ou dados pessoais. Não deduza o conteúdo pelo código/número da lição. Se faltar informação essencial, declare a limitação.",
+    "INTRODUÇÃO: para cada aluno, informe nome, livro, lição e em uma ou duas frases o que aprenderá, priorizando o que compreenderá, dirá, perguntará, responderá ou escreverá. Não inclua atividades nesta seção. Se alunos da mesma lição tiverem objetivos iguais, evite repetição desnecessária sem omitir nomes.",
+    "PEER WORK — SOMENTE ORGANIZAÇÃO: o exercício já consta no livro; não crie, descreva, adapte ou substitua essa atividade. A paridade é o próprio número informado da lição: número par (por exemplo, 24) participa; número ímpar não participa. Se a lição estiver ausente ou não for numérica, não deduza a paridade. Uma dupla é válida se ambos estão na mesma lição do mesmo livro; ou se um está em lição posterior do mesmo livro e já estudou a lição atual do colega — exija evidência explícita de conclusão para esta segunda regra. Nunca compare números de livros diferentes ou crie critérios adicionais. Analise a turma toda; maximize duplas válidas sem repetir aluno, mas não force combinações. Só indique Peer Work com o professor se estiver comprovado que o aluno está na posição mais avançada e sem par elegível; caso contrário, peça confirmação ao professor. Se faltar evidência de conclusão para uma lição posterior, peça confirmação. Informe apenas nomes, livro/lição quando necessário e limitações; não descreva a tarefa do livro.",
+    "WARM-UP: proponha uma única ativação de 3–5 minutos que integre os cinco pilares: interação, integração, produção, reprodução ativa de conteúdo já trabalhado e quebra de estado com propósito pedagógico. Em turma multinível, mantenha a dinâmica comum e adapte desafios aos objetivos individuais. Use pouca preparação e materiais simples; evite repetição quando houver histórico. Informe Nome, Duração, Materiais, Objetivo, Execução com passos numerados e exemplos em inglês quando pertinentes, de modo concreto e imediatamente executável. Se não houver histórico, não invente o que já foi estudado: peça ao professor que selecione para a retomada um item que a turma realmente praticou.",
+    "CLOSING: sugira encerramento curto nos minutos finais, relacionado aos objetivos individuais e que permita observar a aprendizagem. Pode ser revisão, reflexão, produção ou desafio; não transforme em segunda aula ou avaliação extensa. Informe Nome, Duração, Materiais, Execução clara e Objetivo pedagógico.",
+    "FORMATO FINAL: entregue somente o relatório em português e exatamente nesta ordem/títulos: INTRODUÇÃO; PEER WORK (DUPLAS/GRUPOS); WARM-UP (ATIVAÇÃO INICIAL); CLOSING (ENCERRAMENTO); ORIENTAÇÃO FINAL AO PROFESSOR. Use títulos, listas e parágrafos curtos. Finalize com orientação sustentada nos dados, de 1–3 frases. Não comente sobre IA nem processo."
+  ].join("\n\n");
 
   var quotaReservation = consumeGeminiReviewQuota_(properties);
   var quotaCommitted = false;
   try {
-  var response;
-  var fetchStartedAt = Date.now();
-  try {
-    response = UrlFetchApp.fetch(
-      "https://generativelanguage.googleapis.com/v1beta/interactions",
-      {
-        method: "post",
-        contentType: "application/json",
-        headers: { "X-goog-api-key": apiKey },
-        payload: JSON.stringify(payload),
-        muteHttpExceptions: true
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var payload = {
+        model: model,
+        input: prompt + (attempt === 1 ? compactRetryInstruction : ""),
+        system_instruction: systemInstruction,
+        generation_config: { max_output_tokens: 2400, thinking_level: "low" }
+      };
+      var result = fetchGeminiReviewResult_(payload, apiKey, planText, logPrefix, requestId);
+      var outputSteps = result && Array.isArray(result.steps) ? result.steps : [];
+      var outputParts = [];
+      outputSteps.forEach(function (step) {
+        if (!step || step.type !== "model_output" || !Array.isArray(step.content)) return;
+        step.content.forEach(function (part) {
+          if (part && part.type === "text" && part.text) outputParts.push(String(part.text));
+        });
+      });
+      var text = outputParts.join("\n").trim();
+      var providerStatus = String(result && result.status || "").toLowerCase();
+      if (providerStatus === "failed" || providerStatus === "cancelled") {
+        throw new Error("O Google Gemini não concluiu a revisão. Consulte a execução " + safeRequestId_(requestId) + ".");
       }
-    );
+      if (text && providerStatus !== "incomplete" && isCompleteLessonReview_(text, planText)) {
+        quotaCommitted = true;
+        return { text: text, model: result.model || model, status: providerStatus || "completed" };
+      }
+      if (attempt === 0) {
+        console.warn(logPrefix + " Gemini returned an incomplete or structurally incomplete report; retrying concisely within the 2400-token limit.");
+        continue;
+      }
+      var incompleteError = new Error("A IA não conseguiu concluir o relatório completo dentro do limite de 2.400 tokens. Divida a turma em grupos menores e tente novamente.");
+      incompleteError.requestId = safeRequestId_(requestId);
+      throw incompleteError;
+    }
+    throw new Error("A IA não retornou um relatório completo. Tente novamente.");
+  } finally {
+    if (!quotaCommitted) releaseGeminiReviewQuota_(properties, quotaReservation);
+  }
+}
+
+function fetchGeminiReviewResult_(payload, apiKey, planText, logPrefix, requestId) {
+  var fetchStartedAt = Date.now();
+  var response;
+  try {
+    response = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "post",
+      contentType: "application/json",
+      headers: { "X-goog-api-key": apiKey },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
   } catch (err) {
     var errorName = String(err && err.name || "Error");
     var errorMessage = String(err && err.message || err || "Unknown fetch error");
     if (apiKey) errorMessage = errorMessage.split(apiKey).join("[REDACTED]");
     if (planText) errorMessage = errorMessage.split(planText).join("[PLAN REDACTED]");
     errorMessage = errorMessage.replace(/[\r\n\t]+/g, " ").slice(0, 500);
-    console.error(
-      logPrefix + " Gemini UrlFetchApp.fetch failed after " + (Date.now() - fetchStartedAt) +
-      " ms (" + errorName + "): " + errorMessage
-    );
+    console.error(logPrefix + " Gemini UrlFetchApp.fetch failed after " + (Date.now() - fetchStartedAt) + " ms (" + errorName + "): " + errorMessage);
     var fetchError = new Error("Não foi possível acessar o serviço de IA. Tente novamente em instantes.");
     fetchError.requestId = safeRequestId_(requestId);
     throw fetchError;
@@ -1027,17 +1064,15 @@ function reviewLessonWithAI_(data, requestId) {
   if (response.getResponseCode() === 503) {
     console.warn(logPrefix + " Gemini returned HTTP 503; retrying once after a short backoff.");
     Utilities.sleep(1000);
-    response = UrlFetchApp.fetch(
-      "https://generativelanguage.googleapis.com/v1beta/interactions",
-      {
-        method: "post",
-        contentType: "application/json",
-        headers: { "X-goog-api-key": apiKey },
-        payload: JSON.stringify(payload),
-        muteHttpExceptions: true
-      }
-    );
+    response = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "post",
+      contentType: "application/json",
+      headers: { "X-goog-api-key": apiKey },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
   }
+
   var status = response.getResponseCode();
   console.log(logPrefix + " Gemini API returned HTTP " + status + " after " + (Date.now() - fetchStartedAt) + " ms.");
   var result = {};
@@ -1059,25 +1094,54 @@ function reviewLessonWithAI_(data, requestId) {
     requestError.requestId = safeRequestId_(requestId);
     throw requestError;
   }
+  return result;
+}
 
-  var outputSteps = result && Array.isArray(result.steps) ? result.steps : [];
-  var outputParts = [];
-  outputSteps.forEach(function (step) {
-    if (!step || step.type !== "model_output" || !Array.isArray(step.content)) return;
-    step.content.forEach(function (part) {
-      if (part && part.type === "text" && part.text) outputParts.push(String(part.text));
-    });
+function normalizeLessonReviewText_(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function isCompleteLessonReview_(text, planText) {
+  var requiredSections = [
+    "INTRODUÇÃO",
+    "PEER WORK (DUPLAS/GRUPOS)",
+    "WARM-UP (ATIVAÇÃO INICIAL)",
+    "CLOSING (ENCERRAMENTO)",
+    "ORIENTAÇÃO FINAL AO PROFESSOR"
+  ];
+  var reportLines = String(text || "").split(/\r?\n/);
+  var normalizedLines = reportLines.map(function (line) {
+    return normalizeLessonReviewText_(line.trim().replace(/^#{1,6}\s*/, "").replace(/^\*+|\*+$/g, "").trim());
   });
-  var text = outputParts.join("\n").trim();
-  if (result && result.status === "failed" && !text) {
-    throw new Error("O Google Gemini não concluiu a revisão. Consulte a execução " + safeRequestId_(requestId) + ".");
+  var sectionLineIndexes = requiredSections.map(function (section) {
+    return normalizedLines.indexOf(normalizeLessonReviewText_(section));
+  });
+  for (var i = 0; i < sectionLineIndexes.length; i++) {
+    if (sectionLineIndexes[i] < 0 || (i > 0 && sectionLineIndexes[i] <= sectionLineIndexes[i - 1])) return false;
   }
-  if (!text) throw new Error("A IA não retornou uma revisão. Tente novamente.");
-  quotaCommitted = true;
-  return { text: text, model: result.model || model, status: result.status || "completed" };
-  } finally {
-    if (!quotaCommitted) releaseGeminiReviewQuota_(properties, quotaReservation);
+
+  var introduction = normalizedLines.slice(sectionLineIndexes[0] + 1, sectionLineIndexes[1]).join("\n");
+  var studentNames = String(planText || "").split(/\r?\n/).map(function (line) {
+    return line.split(/\t| {2,}/, 1)[0].trim();
+  }).filter(Boolean);
+  if (!studentNames.every(function (name) {
+    return introduction.indexOf(normalizeLessonReviewText_(name)) !== -1;
+  })) return false;
+
+  function sectionBody_(sectionIndex) {
+    return reportLines.slice(sectionLineIndexes[sectionIndex] + 1,
+      sectionLineIndexes[sectionIndex + 1] === undefined ? reportLines.length : sectionLineIndexes[sectionIndex + 1])
+      .join("\n").replace(/[*_`]/g, "");
   }
+  var warmUp = normalizeLessonReviewText_(sectionBody_(2));
+  var closing = normalizeLessonReviewText_(sectionBody_(3));
+  var finalGuidance = sectionBody_(4).trim();
+  function hasLabels_(body, labels) {
+    return labels.every(function (label) { return new RegExp(label + "\\s*:").test(body); });
+  }
+  return hasLabels_(warmUp, ["nome", "duracao", "materiais", "objetivo", "execucao"])
+    && hasLabels_(closing, ["nome", "duracao", "materiais", "execucao", "objetivo pedagogico"])
+    && Boolean(finalGuidance);
 }
 
 /**

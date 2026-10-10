@@ -44,6 +44,13 @@ class Dashboard {
         this.classList.add('active');
       });
     });
+
+    document.querySelectorAll('[data-page-target]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        this.switchPage(button.dataset.pageTarget);
+      });
+    });
   }
 
   static switchPage(pageName) {
@@ -55,17 +62,36 @@ class Dashboard {
       notifications: 'notificationsPage',
       profile: 'profilePage'
     };
+    const pageLabels = {
+      dashboard: 'Visão geral',
+      'lesson-planner': 'Planejador de aula',
+      community: 'Comunidade',
+      rewards: 'Conquistas',
+      notifications: 'Notificações',
+      profile: 'Meu perfil'
+    };
 
     document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
     const targetPage = document.getElementById(pageIdMap[pageName]);
-    if (targetPage) targetPage.classList.add('active');
+    if (!targetPage) return;
+    targetPage.classList.add('active');
+    targetPage.querySelector('h1')?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const currentPageLabel = document.getElementById('currentPageLabel');
+    if (currentPageLabel) currentPageLabel.textContent = pageLabels[pageName] || 'WizPlanning';
 
     document
       .querySelectorAll('.nav-item')
-      .forEach(item => item.classList.toggle('active', item.dataset.page === pageName));
+      .forEach(item => {
+        const isCurrent = item.dataset.page === pageName;
+        item.classList.toggle('active', isCurrent);
+        if (isCurrent) item.setAttribute('aria-current', 'page');
+        else item.removeAttribute('aria-current');
+      });
 
     if (window.innerWidth <= 768) {
       document.getElementById('mainApp')?.classList.remove('sidebar-collapsed');
+      document.getElementById('sidebarToggle')?.setAttribute('aria-expanded', 'false');
     }
 
     setTimeout(() => {
@@ -122,7 +148,7 @@ class Dashboard {
           el.style.opacity = '1';
         }
       });
-      window.UI?.showToast('Demo mode');
+      window.UI?.showToast('Exibindo dados indisponíveis como “N/A”.', 'warning');
     });
   }
 
@@ -131,7 +157,7 @@ class Dashboard {
     if (!title || title.querySelector('.refresh')) return;
 
     const btn = document.createElement('button');
-    btn.textContent = 'Refresh';
+      btn.textContent = 'Atualizar';
     btn.className = 'btn btn-outline refresh';
     btn.type = 'button';
     btn.addEventListener('click', () => this.loadDashboardData(true));
@@ -148,12 +174,12 @@ class Dashboard {
     if (!plans.length) {
       const empty = document.createElement('p');
       empty.className = 'empty-state';
-      empty.textContent = 'No lesson plans. ';
+      empty.textContent = 'Ainda não há planos. ';
 
       const createLink = document.createElement('button');
       createLink.type = 'button';
       createLink.className = 'inline-action';
-      createLink.textContent = 'Create';
+      createLink.textContent = 'Criar plano';
       createLink.addEventListener('click', () => Dashboard.switchPage('lesson-planner'));
 
       empty.appendChild(createLink);
@@ -169,7 +195,7 @@ class Dashboard {
 
       const title = document.createElement('h4');
       const suffix = plan.book === 'Turma' ? ' (Turma)' : plan.lesson ? ` (L${plan.lesson})` : '';
-      title.textContent = `${plan.student_name || 'Lesson plan'}${suffix}`;
+      title.textContent = `${plan.student_name || 'Plano de aula'}${suffix}`;
 
       const meta = document.createElement('p');
       const createdAt = plan.created_at ? new Date(plan.created_at).toLocaleDateString('pt-BR') : '';
@@ -191,7 +217,7 @@ class Dashboard {
       content.className = 'modal-content';
 
       const title = document.createElement('h3');
-      title.textContent = plan.student_name || 'Lesson plan';
+      title.textContent = plan.student_name || 'Plano de aula';
 
       const textarea = document.createElement('textarea');
       textarea.readOnly = true;
@@ -221,12 +247,24 @@ class Dashboard {
       });
 
       document.body.append(modal);
-    }).catch(() => window.UI?.showToast('Erro'));
+    }).catch(() => window.UI?.showToast('Não foi possível abrir este plano.', 'error'));
   }
 
   static setupSidebarToggle() {
-    document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-      document.getElementById('mainApp')?.classList.toggle('sidebar-collapsed');
+    const app = document.getElementById('mainApp');
+    const toggle = document.getElementById('sidebarToggle');
+    const scrim = document.getElementById('sidebarScrim');
+    const setOpen = (isOpen) => {
+      app?.classList.toggle('sidebar-collapsed', isOpen);
+      toggle?.setAttribute('aria-expanded', String(isOpen));
+    };
+
+    toggle?.addEventListener('click', () => {
+      setOpen(!app?.classList.contains('sidebar-collapsed'));
+    });
+    scrim?.addEventListener('click', () => setOpen(false));
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && app?.classList.contains('sidebar-collapsed')) setOpen(false);
     });
   }
 }
