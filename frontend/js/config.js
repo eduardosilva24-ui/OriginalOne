@@ -8,7 +8,7 @@
   // REST backend base, for example: 'https://wizplanning-api.onrender.com'
   const deployedApiBase = '';
   // Google Apps Script backend base.
-  const deployedAppsScriptApiBase = 'https://script.google.com/macros/s/AKfycbxwobTuDMafuitKSFXKzN6B95QRvdMRR00GrHMfC73C4n-8ks94atyTYbCeHdt7qGd3/exec';
+  const deployedAppsScriptApiBase = 'https://script.google.com/macros/s/AKfycbxYX39KdMt6yIRRxkpAx_xBfdLste3YEDfI5kUl20hUZn8cQtQx8OlCEy4fv3HFIwyK/exec';
   const configuredApiBase =
     window.WIZPLANNING_API_BASE ||
     localStorage.getItem('wizplanning:apiBase') ||
